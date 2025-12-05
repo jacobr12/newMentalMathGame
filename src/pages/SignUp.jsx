@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Background3D from '../components/Background3D'
+import { useAuth } from '../context/AuthContext'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -10,25 +11,43 @@ export default function SignUp() {
     password: '',
     confirmPassword: '',
   })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { register } = useAuth()
   
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     })
+    setError('')
   }
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!')
+      setError('Passwords do not match!')
       return
     }
-    // TODO: Add backend registration
-    console.log('Sign up attempt:', formData)
-    // For now, just navigate to dashboard
-    navigate('/stats')
+    
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    
+    setLoading(true)
+    const result = await register(formData.name, formData.email, formData.password)
+    
+    if (result.success) {
+      navigate('/stats')
+    } else {
+      setError(result.error || 'Registration failed. Please try again.')
+    }
+    
+    setLoading(false)
   }
   
   return (
@@ -87,6 +106,25 @@ export default function SignUp() {
           }}>
             Start your mental math journey
           </p>
+          
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid #ef4444',
+                borderRadius: '10px',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                color: '#ef4444',
+                fontSize: '0.9rem',
+                textAlign: 'center',
+              }}
+            >
+              {error}
+            </motion.div>
+          )}
           
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '1.5rem' }}>
@@ -223,22 +261,26 @@ export default function SignUp() {
             
             <motion.button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '0.75rem',
                 borderRadius: '10px',
                 border: 'none',
-                background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+                background: loading
+                  ? 'rgba(99, 102, 241, 0.5)'
+                  : 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
                 color: 'white',
                 fontSize: '1rem',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 marginBottom: '1rem',
+                opacity: loading ? 0.7 : 1,
               }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={loading ? {} : { scale: 1.02 }}
+              whileTap={loading ? {} : { scale: 0.98 }}
             >
-              Sign Up
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </motion.button>
           </form>
           

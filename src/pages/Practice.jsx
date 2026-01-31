@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import Background3D from '../components/Background3D'
 import Navigation from '../components/Navigation'
 import CustomPracticeConfig from '../components/CustomPracticeConfig'
+import { statsAPI } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 function generateProblem(difficulty = 'easy', customSettings = null) {
   let a, b, answer, operator
@@ -106,10 +108,16 @@ export default function Practice() {
   const [userAnswer, setUserAnswer] = useState('')
   const [score, setScore] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(60)
+  const [totalProblems, setTotalProblems] = useState(0)
   const [isChecking, setIsChecking] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
+  const [sessionSaved, setSessionSaved] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
   const inputRef = useRef(null)
+  const startTimeRef = useRef(null)
+  const { isAuthenticated } = useAuth()
+  const problemsRef = useRef([])
+  const currentProblemStartRef = useRef(null)
   
   // Parse custom settings from URL params
   useEffect(() => {
@@ -138,9 +146,25 @@ export default function Practice() {
   }, [mode, searchParams])
   
   const generateNewProblem = useCallback(() => {
-    setProblem(generateProblem(difficulty, customSettings))
+    const newProb = generateProblem(difficulty, customSettings)
+    setProblem(newProb)
     setUserAnswer('')
     setIsChecking(false)
+    setTotalProblems(prev => prev + 1)
+
+    // record placeholder for this problem (to be marked when answered)
+    problemsRef.current.push({
+      a: newProb.a,
+      b: newProb.b,
+      operator: newProb.operator,
+      correct: false,
+      attempted: false,
+      timeTaken: 0,
+    })
+
+    // start timing for this problem
+    currentProblemStartRef.current = Date.now()
+
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus()
@@ -156,6 +180,10 @@ export default function Practice() {
     const initialTime = customSettings?.time || 60
     setTimeRemaining(initialTime)
     setScore(0)
+    setTotalProblems(0)
+    startTimeRef.current = Date.now()
+    problemsRef.current = []
+    setSessionSaved(false)
     generateNewProblem()
   }, [difficulty, customSettings, generateNewProblem, showConfig])
   
@@ -174,6 +202,36 @@ export default function Practice() {
     
     return () => clearInterval(interval)
   }, [gameStarted, showConfig])
+
+  // When time runs out, save session to backend (once)
+  useEffect(() => {
+    const saveSession = async () => {
+      try {
+        const initialTime = customSettings?.time || 60
+        const timeElapsed = Math.max(1, Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000))
+        const payload = {
+          score,
+          timeLimit: initialTime,
+          difficulty: mode === 'custom' ? 'custom' : difficulty,
+          operations: customSettings?.operations || [],
+          timeElapsed,
+          totalProblems,
+          problems: problemsRef.current || [],
+        }
+
+        if (isAuthenticated) {
+          await statsAPI.saveSession(payload)
+        }
+      } catch (err) {
+        console.error('Failed to save session:', err)
+      }
+    }
+
+    if (timeRemaining === 0 && gameStarted && !sessionSaved) {
+      setSessionSaved(true)
+      saveSession()
+    }
+  }, [timeRemaining, gameStarted, sessionSaved, score, totalProblems, customSettings, difficulty, mode, isAuthenticated])
   
   // Focus input when problem changes
   useEffect(() => {
@@ -196,6 +254,20 @@ export default function Practice() {
     if (answerNum === problem.answer) {
       setIsChecking(true)
       setScore(prev => prev + 1)
+
+      // mark this problem as attempted and correct; save time taken
+      try {
+        const idx = problemsRef.current.length - 1
+        const timeTaken = Math.max(0, Date.now() - (currentProblemStartRef.current || Date.now()))
+        if (idx >= 0) {
+          problemsRef.current[idx].attempted = true
+          problemsRef.current[idx].correct = true
+          problemsRef.current[idx].timeTaken = timeTaken
+        }
+      } catch (e) {
+        // ignore
+      }
+
       generateNewProblem()
     }
   }, [userAnswer, problem, isChecking, generateNewProblem, timeRemaining, showConfig])

@@ -95,27 +95,54 @@ const statsSchema = new mongoose.Schema({
     hard: { type: Number, default: 0 },
     custom: { type: Number, default: 0 },
   },
+  // Session count per difficulty (for calculating averages)
+  sessionCountByDifficulty: {
+    easy: { type: Number, default: 0 },
+    medium: { type: Number, default: 0 },
+    hard: { type: Number, default: 0 },
+    custom: { type: Number, default: 0 },
+  },
+  // Stats by category (matches Home: easy, medium, hard, addition, division, multiplication, 2digit-mult, custom)
+  categoryStats: {
+    type: Map,
+    of: new mongoose.Schema({
+      problems: { type: Number, default: 0 },
+      correct: { type: Number, default: 0 },
+      highScore: { type: Number, default: 0 },
+      avgScore: { type: Number, default: 0 },
+      sessionCount: { type: Number, default: 0 },
+    }, { _id: false }),
+    default: () => new Map(),
+  },
   // Stats by operation: add, sub, mul, div
   operationStats: {
     add: {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
     sub: {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
     mul: {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
     div: {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
   },
   // Stats by digit category: 1d, 2d, 3d+ (max digit count of operands)
@@ -124,16 +151,22 @@ const statsSchema = new mongoose.Schema({
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
     '2d': {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
     '3d+': {
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     },
   },
   // Combined category: operation + digit (e.g. add_1d, mul_3d+)
@@ -143,6 +176,8 @@ const statsSchema = new mongoose.Schema({
       attempts: { type: Number, default: 0 },
       correct: { type: Number, default: 0 },
       avgTime: { type: Number, default: 0 },
+      totalTime: { type: Number, default: 0 },
+      timeCount: { type: Number, default: 0 },
     }, { _id: false }),
     default: {},
   },

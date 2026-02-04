@@ -1,127 +1,139 @@
 import { useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { Points, PointMaterial } from '@react-three/drei'
+import * as THREE from 'three'
 
-function ShimmeringBox({ position, rotationSpeed, color }) {
-  const meshRef = useRef()
-  const timeRef = useRef(0)
-  
-  useFrame((state, delta) => {
-    timeRef.current += delta * rotationSpeed
-    
-    if (meshRef.current) {
-      // Rotate the box
-      meshRef.current.rotation.x = timeRef.current * 0.5
-      meshRef.current.rotation.y = timeRef.current * 0.3
-      
-      // Float animation
-      meshRef.current.position.y = position[1] + Math.sin(timeRef.current) * 0.5
+const STAR_COUNT = 4000
+
+function Starfield() {
+  const ref = useRef()
+  const positions = useMemo(() => {
+    const pos = new Float32Array(STAR_COUNT * 3)
+    for (let i = 0; i < STAR_COUNT * 3; i += 3) {
+      pos[i] = (Math.random() - 0.5) * 80
+      pos[i + 1] = (Math.random() - 0.5) * 80
+      pos[i + 2] = (Math.random() - 0.5) * 80
+    }
+    return pos
+  }, [])
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.02
     }
   })
-  
   return (
-    <mesh ref={meshRef} position={position} castShadow receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial
+    <Points ref={ref} positions={positions} stride={3} frustumCulled={false}>
+      <PointMaterial
+        transparent
+        vertexColors={false}
+        size={0.35}
+        sizeAttenuation
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        color="#a78bfa"
+        opacity={0.9}
+      />
+    </Points>
+  )
+}
+
+function GlowOrb({ position, color, scale = 1 }) {
+  const meshRef = useRef()
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.3
+    }
+  })
+  return (
+    <mesh ref={meshRef} position={position} scale={scale}>
+      <sphereGeometry args={[1, 32, 32]} />
+      <meshBasicMaterial
         color={color}
-        metalness={0.9}
-        roughness={0.1}
-        emissive={color}
-        emissiveIntensity={0.2}
+        transparent
+        opacity={0.15}
       />
     </mesh>
   )
 }
 
-function ShimmeringBoxes() {
-  const boxes = useMemo(() => {
-    const boxesArray = []
-    const colors = [
-      '#6366f1', // Indigo
-      '#8b5cf6', // Purple
-      '#ec4899', // Pink
-      '#06b6d4', // Cyan
-      '#10b981', // Emerald
-      '#f59e0b', // Amber
-    ]
-    
-    for (let i = 0; i < 20; i++) {
-      boxesArray.push({
-        position: [
-          (Math.random() - 0.5) * 20,
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 20,
-        ],
-        rotationSpeed: 0.3 + Math.random() * 0.5,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      })
+function HolographicRing() {
+  const ref = useRef()
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.x = state.clock.elapsedTime * 0.1
+      ref.current.rotation.z = state.clock.elapsedTime * 0.05
     }
-    
-    return boxesArray
-  }, [])
-  
+  })
   return (
-    <>
-      {boxes.map((box, index) => (
-        <ShimmeringBox
-          key={index}
-          position={box.position}
-          rotationSpeed={box.rotationSpeed}
-          color={box.color}
-        />
-      ))}
-    </>
+    <mesh ref={ref} position={[0, 0, -8]} rotation={[Math.PI / 2.5, 0, 0]}>
+      <torusGeometry args={[6, 0.03, 16, 100]} />
+      <meshBasicMaterial
+        color="#8b5cf6"
+        transparent
+        opacity={0.4}
+      />
+    </mesh>
   )
 }
 
-function Lighting() {
+function ParticleField() {
+  const count = 800
+  const ref = useRef()
+  const positions = useMemo(() => {
+    const pos = new Float32Array(count * 3)
+    for (let i = 0; i < count * 3; i += 3) {
+      pos[i] = (Math.random() - 0.5) * 40
+      pos[i + 1] = (Math.random() - 0.5) * 40
+      pos[i + 2] = (Math.random() - 0.5) * 40
+    }
+    return pos
+  }, [])
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.015
+    }
+  })
   return (
-    <>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={1} color="#6366f1" />
-      <pointLight position={[-10, -10, -10]} intensity={0.8} color="#ec4899" />
-      <spotLight
-        position={[0, 15, 0]}
-        angle={0.3}
-        penumbra={1}
-        intensity={0.5}
-        color="#8b5cf6"
-        castShadow
+    <Points ref={ref} positions={positions} stride={3} frustumCulled={false}>
+      <PointMaterial
+        transparent
+        size={0.15}
+        sizeAttenuation
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        color="#c4b5fd"
+        opacity={0.6}
       />
-    </>
+    </Points>
   )
 }
 
 export default function Background3D() {
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100%', 
-      height: '100%', 
-      zIndex: 0,
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
-    }}>
+    <div className="galactic-bg-wrap">
+      <div className="galactic-gradient" />
+      <div className="galactic-stars-css" aria-hidden="true" />
       <Canvas
-        shadows
-        gl={{ 
-          antialias: true, 
-          alpha: false,
-          powerPreference: 'high-performance'
+        className="galactic-canvas"
+        camera={{ position: [0, 0, 25], fov: 60 }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
         }}
       >
-        <PerspectiveCamera makeDefault position={[0, 0, 15]} fov={75} />
-        <Lighting />
-        <ShimmeringBoxes />
-        <OrbitControls 
-          enableZoom={false} 
-          enablePan={false}
-          autoRotate
-          autoRotateSpeed={0.5}
-          minPolarAngle={Math.PI / 3}
-          maxPolarAngle={Math.PI / 1.5}
-        />
+        <fog attach="fog" args={['#0f0a1f', 20, 70]} />
+        <color attach="background" args={['#050308']} />
+        <ambientLight intensity={0.15} />
+        <pointLight position={[10, 10, 10]} intensity={0.4} color="#8b5cf6" />
+        <pointLight position={[-10, -5, 5]} intensity={0.3} color="#6366f1" />
+        <pointLight position={[0, 10, -10]} intensity={0.2} color="#a78bfa" />
+        <Starfield />
+        <ParticleField />
+        <GlowOrb position={[4, 2, -5]} color="#8b5cf6" scale={2} />
+        <GlowOrb position={[-5, -2, -6]} color="#6366f1" scale={1.5} />
+        <GlowOrb position={[0, 4, -10]} color="#a78bfa" scale={1} />
+        <HolographicRing />
       </Canvas>
     </div>
   )

@@ -65,13 +65,15 @@ export default function CustomPracticeConfig() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
       style={{
-        backdropFilter: 'blur(20px)',
-        backgroundColor: 'rgba(15, 23, 42, 0.8)',
-        border: '1px solid rgba(99, 102, 241, 0.3)',
-        borderRadius: '30px',
+        background: 'rgba(10, 10, 30, 0.6)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(139, 92, 246, 0.3)',
+        borderRadius: '24px',
         padding: '3rem',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+        boxShadow: '0 0 50px rgba(99, 102, 241, 0.12), 0 0 100px rgba(139, 92, 246, 0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
         maxWidth: '600px',
         margin: '2rem auto',
       }}
@@ -79,7 +81,7 @@ export default function CustomPracticeConfig() {
       <h2 style={{
         fontSize: '2rem',
         fontWeight: '700',
-        background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+        background: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #ec4899 100%)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         marginBottom: '2rem',

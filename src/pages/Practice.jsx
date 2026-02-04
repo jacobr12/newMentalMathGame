@@ -7,93 +7,186 @@ import CustomPracticeConfig from '../components/CustomPracticeConfig'
 import { statsAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
-function generateProblem(difficulty = 'easy', customSettings = null) {
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
+
+function generateProblem(difficulty = 'easy', customSettings = null, mode = null) {
   let a, b, answer, operator
-  let ops = ['+', '-', '*']
-  let minNum = 1
-  let maxNum = 50
-  
-  if (customSettings) {
-    // Custom mode
-    ops = customSettings.operations
-    minNum = customSettings.min
-    maxNum = customSettings.max
-  } else {
-    // Preset difficulty mode
-    switch (difficulty) {
-      case 'easy':
-        minNum = 1
-        maxNum = 50
-        break
-      case 'medium':
-        minNum = 1
-        maxNum = 100
-        break
-      case 'hard':
-        minNum = 1
-        maxNum = 500
-        break
-      default:
-        minNum = 1
-        maxNum = 50
-    }
+
+  // —— Practice modes (single operation) ——
+  if (mode === 'addition') {
+    a = rand(2, 100)
+    b = rand(2, 100)
+    return { a, b, operator: '+', answer: a + b }
   }
-  
-  // Select random operator
-  operator = ops[Math.floor(Math.random() * ops.length)]
-  
-  // Generate numbers based on operation to ensure valid answers
-  switch (operator) {
-    case '+':
-      a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      answer = a + b
-      break
-    case '-':
-      // Ensure result is non-negative or within range
-      a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      b = Math.floor(Math.random() * (a - minNum + 1)) + minNum
-      answer = a - b
-      break
-    case '*':
-      a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      answer = a * b
-      break
-    case '/':
-      // For division, ensure whole number result: a ÷ b = answer (so a = b × answer)
-      // Generate answer (quotient) first, then divisor b, then calculate a
-      answer = Math.floor(Math.random() * (Math.min(maxNum, 20) - minNum + 1)) + minNum
-      if (answer === 0) answer = 1
-      
-      // Generate divisor b
-      b = Math.floor(Math.random() * (Math.min(maxNum, 20) - minNum + 1)) + minNum
-      if (b === 0) b = 1
-      
-      // Calculate dividend a = b × answer
-      a = b * answer
-      
-      // If a is out of range, adjust b
-      if (a > maxNum) {
-        b = Math.floor(maxNum / answer)
-        if (b < minNum) b = minNum
+  if (mode === 'subtraction') {
+    a = rand(2, 100)
+    b = rand(2, 100)
+    if (b > a) [a, b] = [b, a]
+    return { a, b, operator: '-', answer: a - b }
+  }
+  if (mode === 'multiplication') {
+    a = rand(2, 100)
+    b = rand(2, 100)
+    return { a, b, operator: '*', answer: a * b }
+  }
+  if (mode === '2digit-mult') {
+    a = rand(10, 99)
+    b = rand(10, 99)
+    return { a, b, operator: '*', answer: a * b }
+  }
+  if (mode === 'division') {
+    b = rand(2, 12)
+    answer = rand(2, 100)
+    a = b * answer
+    return { a, b, operator: '/', answer }
+  }
+
+  // —— Custom mode (URL params) ——
+  if (customSettings && customSettings.operations && customSettings.operations.length > 0) {
+    const ops = customSettings.operations
+    const minNum = customSettings.min ?? 1
+    const maxNum = customSettings.max ?? 50
+    operator = ops[Math.floor(Math.random() * ops.length)]
+
+    switch (operator) {
+      case '+':
+        a = rand(minNum, maxNum)
+        b = rand(minNum, maxNum)
+        answer = a + b
+        break
+      case '-':
+        a = rand(minNum, maxNum)
+        b = rand(minNum, Math.min(a, maxNum))
+        answer = a - b
+        break
+      case '*':
+        a = rand(minNum, maxNum)
+        b = rand(minNum, maxNum)
+        answer = a * b
+        break
+      case '/':
+        answer = rand(minNum, Math.min(20, maxNum))
+        if (answer === 0) answer = 1
+        b = rand(minNum, Math.min(20, maxNum))
+        if (b === 0) b = 1
         a = b * answer
-        // If still out of range, reduce answer
-        while (a > maxNum && answer > 1) {
-          answer--
-          b = Math.floor(maxNum / answer)
-          if (b < minNum) b = minNum
+        if (a > maxNum) {
+          b = Math.floor(maxNum / answer) || minNum
           a = b * answer
         }
-      }
-      break
-    default:
-      a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum
-      answer = a + b
+        break
+      default:
+        a = rand(minNum, maxNum)
+        b = rand(minNum, maxNum)
+        answer = a + b
+    }
+    return { a, b, operator, answer }
   }
-  
-  return { a, b, operator, answer }
+
+  // —— Easy: single digit only (1–9), all four operations ——
+  if (difficulty === 'easy') {
+    operator = ['+', '-', '*', '/'][rand(0, 3)]
+    switch (operator) {
+      case '+':
+        a = rand(1, 9)
+        b = rand(1, 9)
+        answer = a + b
+        break
+      case '-':
+        a = rand(1, 9)
+        b = rand(1, 9)
+        if (b > a) [a, b] = [b, a]
+        answer = a - b
+        break
+      case '*':
+        a = rand(1, 9)
+        b = rand(1, 9)
+        answer = a * b
+        break
+      case '/':
+        b = rand(1, 9)
+        if (b === 0) b = 1
+        answer = rand(1, 9)
+        a = b * answer
+        break
+      default:
+        a = rand(1, 9)
+        b = rand(1, 9)
+        answer = a + b
+    }
+    return { a, b, operator, answer }
+  }
+
+  // —— Medium (Zetamac): add/sub 2–100, mult 2–12 × 2–100, div divisor 2–12 quotient 2–100 ——
+  if (difficulty === 'medium') {
+    operator = ['+', '-', '*', '/'][rand(0, 3)]
+    switch (operator) {
+      case '+':
+        a = rand(2, 100)
+        b = rand(2, 100)
+        answer = a + b
+        break
+      case '-':
+        a = rand(2, 100)
+        b = rand(2, 100)
+        if (b > a) [a, b] = [b, a]
+        answer = a - b
+        break
+      case '*':
+        a = rand(2, 12)
+        b = rand(2, 100)
+        answer = a * b
+        break
+      case '/':
+        b = rand(2, 12)
+        answer = rand(2, 100)
+        a = b * answer
+        break
+      default:
+        a = rand(2, 100)
+        b = rand(2, 100)
+        answer = a + b
+    }
+    return { a, b, operator, answer }
+  }
+
+  // —— Hard: larger numbers ——
+  if (difficulty === 'hard') {
+    operator = ['+', '-', '*', '/'][rand(0, 3)]
+    switch (operator) {
+      case '+':
+        a = rand(1, 200)
+        b = rand(1, 200)
+        answer = a + b
+        break
+      case '-':
+        a = rand(1, 200)
+        b = rand(1, 200)
+        if (b > a) [a, b] = [b, a]
+        answer = a - b
+        break
+      case '*':
+        a = rand(2, 50)
+        b = rand(2, 50)
+        answer = a * b
+        break
+      case '/':
+        b = rand(2, 50)
+        answer = rand(2, 50)
+        a = b * answer
+        break
+      default:
+        a = rand(1, 200)
+        b = rand(1, 200)
+        answer = a + b
+    }
+    return { a, b, operator, answer }
+  }
+
+  // Fallback: easy
+  a = rand(1, 9)
+  b = rand(1, 9)
+  return { a, b, operator: '+', answer: a + b }
 }
 
 export default function Practice() {
@@ -108,7 +201,6 @@ export default function Practice() {
   const [userAnswer, setUserAnswer] = useState('')
   const [score, setScore] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(60)
-  const [totalProblems, setTotalProblems] = useState(0)
   const [isChecking, setIsChecking] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [sessionSaved, setSessionSaved] = useState(false)
@@ -116,8 +208,12 @@ export default function Practice() {
   const inputRef = useRef(null)
   const startTimeRef = useRef(null)
   const { isAuthenticated } = useAuth()
+  
+  // COMPLETELY REWRITTEN: Track problems in a more reliable way
   const problemsRef = useRef([])
   const currentProblemStartRef = useRef(null)
+  const savingRef = useRef(false)
+  const gameSessionIdRef = useRef(null) // Unique ID for each game session
   
   // Parse custom settings from URL params
   useEffect(() => {
@@ -146,44 +242,52 @@ export default function Practice() {
   }, [mode, searchParams])
   
   const generateNewProblem = useCallback(() => {
-    const newProb = generateProblem(difficulty, customSettings)
+    const newProb = generateProblem(difficulty, customSettings, mode)
     setProblem(newProb)
     setUserAnswer('')
     setIsChecking(false)
-    setTotalProblems(prev => prev + 1)
 
-    // record placeholder for this problem (to be marked when answered)
-    problemsRef.current.push({
+    // Create a new problem entry with unique ID
+    const problemId = Date.now() + Math.random()
+    const problemEntry = {
+      id: problemId,
       a: newProb.a,
       b: newProb.b,
       operator: newProb.operator,
       correct: false,
       attempted: false,
       timeTaken: 0,
-    })
+      startTime: Date.now(),
+    }
 
-    // start timing for this problem
-    currentProblemStartRef.current = Date.now()
+    problemsRef.current.push(problemEntry)
+    currentProblemStartRef.current = problemEntry.startTime
 
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus()
-      }
-    }, 50)
-  }, [difficulty, customSettings])
+    console.log('📝 New problem generated. Total problems so far:', problemsRef.current.length)
+
+    // Focus input immediately
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [difficulty, customSettings, mode])
   
   // Start game when settings are ready
   useEffect(() => {
-    if (showConfig) return // Don't start if showing config
+    if (showConfig) return
+    
+    // Generate unique session ID
+    gameSessionIdRef.current = `session-${Date.now()}-${Math.random()}`
     
     setGameStarted(true)
     const initialTime = customSettings?.time || 60
     setTimeRemaining(initialTime)
     setScore(0)
-    setTotalProblems(0)
     startTimeRef.current = Date.now()
-    problemsRef.current = []
+    problemsRef.current = [] // Clear previous problems
     setSessionSaved(false)
+    savingRef.current = false
+    
+    console.log('🎮 Starting new game session:', gameSessionIdRef.current)
     generateNewProblem()
   }, [difficulty, customSettings, generateNewProblem, showConfig])
   
@@ -203,35 +307,89 @@ export default function Practice() {
     return () => clearInterval(interval)
   }, [gameStarted, showConfig])
 
-  // When time runs out, save session to backend (once)
-  useEffect(() => {
-    const saveSession = async () => {
-      try {
-        const initialTime = customSettings?.time || 60
-        const timeElapsed = Math.max(1, Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000))
-        const payload = {
-          score,
-          timeLimit: initialTime,
-          difficulty: mode === 'custom' ? 'custom' : difficulty,
-          operations: customSettings?.operations || [],
-          timeElapsed,
-          totalProblems,
-          problems: problemsRef.current || [],
-        }
-
-        if (isAuthenticated) {
-          await statsAPI.saveSession(payload)
-        }
-      } catch (err) {
-        console.error('Failed to save session:', err)
-      }
+  // Save session function - completely rewritten
+  const saveSession = useCallback(async () => {
+    if (savingRef.current) {
+      console.log('⏭️ Save already in progress, skipping')
+      return
     }
+    
+    if (sessionSaved) {
+      console.log('⏭️ Session already saved, skipping')
+      return
+    }
+    
+    savingRef.current = true
+    
+    try {
+      if (!isAuthenticated) {
+        console.warn('⚠️ Not authenticated, cannot save stats')
+        savingRef.current = false
+        return
+      }
 
-    if (timeRemaining === 0 && gameStarted && !sessionSaved) {
+      // Get all problems from the ref
+      const allProblems = [...problemsRef.current]
+      const actualProblemCount = allProblems.length
+      const actualScore = allProblems.filter(p => p.correct && p.attempted).length
+      
+      // Calculate total time elapsed
+      const initialTime = customSettings?.time || 60
+      const timeElapsed = Math.max(1, Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000))
+      
+      // Prepare problems array for backend (ensure all have valid data)
+      const problemsForBackend = allProblems.map(p => ({
+        a: Number(p.a) || 0,
+        b: Number(p.b) || 0,
+        operator: p.operator || '+',
+        correct: Boolean(p.correct && p.attempted),
+        attempted: Boolean(p.attempted),
+        timeTaken: Math.max(0, Number(p.timeTaken) || 0),
+      }))
+      
+      // Category for stats (matches Home page: easy, medium, hard, addition, division, multiplication, 2digit-mult, custom)
+      const category = ['addition', 'division', 'multiplication', '2digit-mult'].includes(mode)
+        ? mode
+        : (mode === 'custom' ? 'custom' : difficulty);
+
+      const payload = {
+        score: actualScore,
+        timeLimit: initialTime,
+        difficulty: mode === 'custom' ? 'custom' : difficulty,
+        category,
+        operations: customSettings?.operations || [],
+        timeElapsed,
+        totalProblems: actualProblemCount,
+        problems: problemsForBackend,
+      }
+
+      console.log('💾 Saving session:', {
+        sessionId: gameSessionIdRef.current,
+        score: actualScore,
+        totalProblems: actualProblemCount,
+        problemsArrayLength: problemsForBackend.length,
+        difficulty: payload.difficulty,
+        problems: problemsForBackend.map(p => `${p.a}${p.operator}${p.b}=${p.correct}`).slice(0, 5) // Show first 5
+      })
+      
+      const result = await statsAPI.saveSession(payload)
+      console.log('✅ Session saved successfully!', result)
       setSessionSaved(true)
+    } catch (err) {
+      console.error('❌ Failed to save session:', err)
+      console.error('Error details:', err.message, err.stack)
+      savingRef.current = false
+    }
+  }, [isAuthenticated, sessionSaved, customSettings, difficulty, mode])
+
+  // When time runs out, save session
+  useEffect(() => {
+    if (timeRemaining === 0 && gameStarted && !sessionSaved && !savingRef.current) {
+      console.log('⏰ Timer reached 0, saving session...')
+      console.log('📊 Problems tracked:', problemsRef.current.length)
       saveSession()
     }
-  }, [timeRemaining, gameStarted, sessionSaved, score, totalProblems, customSettings, difficulty, mode, isAuthenticated])
+  }, [timeRemaining, gameStarted, sessionSaved, saveSession])
   
   // Focus input when problem changes
   useEffect(() => {
@@ -255,19 +413,22 @@ export default function Practice() {
       setIsChecking(true)
       setScore(prev => prev + 1)
 
-      // mark this problem as attempted and correct; save time taken
-      try {
-        const idx = problemsRef.current.length - 1
-        const timeTaken = Math.max(0, Date.now() - (currentProblemStartRef.current || Date.now()))
-        if (idx >= 0) {
-          problemsRef.current[idx].attempted = true
-          problemsRef.current[idx].correct = true
-          problemsRef.current[idx].timeTaken = timeTaken
-        }
-      } catch (e) {
-        // ignore
+      // Find and update the current problem in the problems array
+      const currentProblem = problemsRef.current[problemsRef.current.length - 1]
+      if (currentProblem && currentProblem.startTime === currentProblemStartRef.current) {
+        const timeTaken = Date.now() - currentProblem.startTime
+        currentProblem.correct = true
+        currentProblem.attempted = true
+        currentProblem.timeTaken = timeTaken
+        
+        console.log('✅ Problem answered correctly:', {
+          problem: `${currentProblem.a}${currentProblem.operator}${currentProblem.b}`,
+          timeTaken: `${(timeTaken / 1000).toFixed(2)}s`,
+          totalProblems: problemsRef.current.length
+        })
       }
 
+      // Generate next problem immediately (no delay)
       generateNewProblem()
     }
   }, [userAnswer, problem, isChecking, generateNewProblem, timeRemaining, showConfig])
@@ -311,7 +472,7 @@ export default function Practice() {
             fontSize: '2.5rem',
             fontWeight: '700',
             margin: 0,
-            background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+            background: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #ec4899 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -322,11 +483,12 @@ export default function Practice() {
             <div style={{
               display: 'flex',
               gap: '0.5rem',
-              backdropFilter: 'blur(10px)',
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
+              background: 'rgba(10, 10, 30, 0.5)',
+              backdropFilter: 'blur(16px)',
               padding: '0.5rem',
               borderRadius: '12px',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              boxShadow: '0 0 24px rgba(99, 102, 241, 0.1)',
             }}>
               {['easy', 'medium', 'hard'].map((level) => (
                 <motion.button
@@ -378,14 +540,15 @@ export default function Practice() {
         
         {mode === 'custom' && customSettings && (
           <div style={{
-            backdropFilter: 'blur(10px)',
-            backgroundColor: 'rgba(15, 23, 42, 0.7)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
+            background: 'rgba(10, 10, 30, 0.5)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(139, 92, 246, 0.25)',
             borderRadius: '12px',
             padding: '1rem 1.5rem',
             marginBottom: '2rem',
             fontSize: '0.9rem',
             color: '#94a3b8',
+            boxShadow: '0 0 30px rgba(99, 102, 241, 0.08)',
           }}>
             <strong style={{ color: '#e2e8f0' }}>Custom Settings:</strong> {' '}
             Operations: {customSettings.operations.map(op => op === '*' ? '×' : op === '/' ? '÷' : op).join(', ')} | {' '}
@@ -394,17 +557,16 @@ export default function Practice() {
           </div>
         )}
         
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+        <div
           key={problem?.a + problem?.b + problem?.operator}
           style={{
-            backdropFilter: 'blur(20px)',
-            backgroundColor: 'rgba(15, 23, 42, 0.8)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            borderRadius: '30px',
+            background: 'rgba(10, 10, 30, 0.6)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            borderRadius: '24px',
             padding: '4rem',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            boxShadow: '0 0 50px rgba(99, 102, 241, 0.12), 0 0 100px rgba(139, 92, 246, 0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
             textAlign: 'center',
             marginBottom: '2rem',
           }}
@@ -419,6 +581,11 @@ export default function Practice() {
             <div>
               Score: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.5rem' }}>
                 {score}
+              </span>
+            </div>
+            <div>
+              Problems: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.5rem' }}>
+                {problemsRef.current.length}
               </span>
             </div>
             <div>
@@ -453,35 +620,67 @@ export default function Practice() {
               width: '100%',
               maxWidth: '300px',
               padding: '1.5rem',
-              borderRadius: '15px',
-              border: '2px solid rgba(99, 102, 241, 0.3)',
-              background: 'rgba(15, 23, 42, 0.5)',
+              borderRadius: '14px',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              background: 'rgba(10, 10, 30, 0.6)',
               color: '#e2e8f0',
               fontSize: '2rem',
               fontWeight: '600',
               textAlign: 'center',
               outline: 'none',
               fontFamily: 'monospace',
+              boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
             }}
             whileFocus={{
-              borderColor: '#6366f1',
-              boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.1)',
+              borderColor: '#8b5cf6',
+              boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.2), 0 0 40px rgba(99, 102, 241, 0.15)',
             }}
           />
           
           {timeRemaining <= 0 && (
-            <motion.p
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               style={{
-                color: '#ef4444',
                 marginTop: '2rem',
-                fontSize: '1.2rem',
-                fontWeight: '600',
               }}
             >
-              Time's up! Final Score: {score}
-            </motion.p>
+              <p style={{
+                color: '#ef4444',
+                fontSize: '1.2rem',
+                fontWeight: '600',
+                marginBottom: '0.5rem',
+              }}>
+                Time's up! Final Score: {score} / {problemsRef.current.length}
+              </p>
+              {!isAuthenticated && (
+                <p style={{
+                  color: '#fbbf24',
+                  fontSize: '0.9rem',
+                  marginTop: '0.5rem',
+                }}>
+                  ⚠️ Sign in to save your stats
+                </p>
+              )}
+              {isAuthenticated && sessionSaved && (
+                <p style={{
+                  color: '#10b981',
+                  fontSize: '0.9rem',
+                  marginTop: '0.5rem',
+                }}>
+                  ✅ Stats saved! ({problemsRef.current.length} problems)
+                </p>
+              )}
+              {isAuthenticated && !sessionSaved && (
+                <p style={{
+                  color: '#94a3b8',
+                  fontSize: '0.9rem',
+                  marginTop: '0.5rem',
+                }}>
+                  Saving stats...
+                </p>
+              )}
+            </motion.div>
           )}
           
           {!userAnswer && timeRemaining > 0 && (
@@ -493,7 +692,7 @@ export default function Practice() {
               Type your answer to continue
             </p>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   )

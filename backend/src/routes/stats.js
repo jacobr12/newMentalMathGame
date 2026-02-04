@@ -4,11 +4,31 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Helper: digit count of a number (1 = 1-9, 2 = 10-99, 3 = 100+)
+function digitCount(n) {
+  const val = Math.abs(Math.floor(Number(n) || 0));
+  if (val < 10) return 1;
+  if (val < 100) return 2;
+  return 3;
+}
+
 // Helper to get digit category (1d, 2d, 3d+)
-function getDigitCategory(num) {
-  const digits = String(Math.abs(num)).length;
-  if (digits === 1) return '1d';
-  if (digits === 2) return '2d';
+// Single digit = lowest number in problem is single digit; double = lowest is double digit; etc.
+// For division: use lowest of divisor (b) and quotient (a/b).
+function getDigitCategory(a, b, operator) {
+  const op = String(operator || '').trim();
+  const na = Number(a);
+  const nb = Number(b);
+  let count = 1;
+  if (op === '/') {
+    const quotient = nb !== 0 ? Math.floor(na / nb) : 0;
+    count = Math.min(digitCount(nb), digitCount(quotient));
+  } else {
+    // +, -, *: use minimum of the two operands
+    count = Math.min(digitCount(na), digitCount(nb));
+  }
+  if (count === 1) return '1d';
+  if (count === 2) return '2d';
   return '3d+';
 }
 
@@ -21,21 +41,46 @@ function getOperationKey(operator) {
   return 'other';
 }
 
-// Helper to update stat aggregates
+// Helper to update stat aggregates - only count attempted problems with valid time
 function updateStatAggregate(stats, key, correct, timeMs) {
   if (!stats[key]) {
-    stats[key] = { attempts: 0, correct: 0, avgTime: 0, totalTime: 0 };
+    stats[key] = { attempts: 0, correct: 0, avgTime: 0, totalTime: 0, timeCount: 0 };
   }
-  const newAttempts = stats[key].attempts + 1;
-  const newCorrect = stats[key].correct + (correct ? 1 : 0);
-  const newTotalTime = stats[key].totalTime + (timeMs / 1000); // convert to seconds
-  const newAvgTime = Math.round((newTotalTime / newAttempts) * 100) / 100;
-
+  
+  // Ensure all fields are valid numbers
+  const currentAttempts = Number(stats[key].attempts || 0) || 0;
+  const currentCorrect = Number(stats[key].correct || 0) || 0;
+  const currentTotalTime = Number(stats[key].totalTime || 0) || 0;
+  const currentTimeCount = Number(stats[key].timeCount || 0) || 0; // How many problems had valid time
+  
+  // Convert time to seconds and validate
+  const timeSeconds = Number(timeMs || 0) / 1000;
+  const hasValidTime = !isNaN(timeSeconds) && timeSeconds > 0 && timeMs > 0;
+  
+  const newAttempts = currentAttempts + 1;
+  const newCorrect = currentCorrect + (correct ? 1 : 0);
+  
+  // Only add time if it's valid
+  let newTotalTime = currentTotalTime;
+  let newTimeCount = currentTimeCount;
+  
+  if (hasValidTime) {
+    newTotalTime = currentTotalTime + timeSeconds;
+    newTimeCount = currentTimeCount + 1;
+  }
+  
+  // Calculate average time - only from problems with valid time
+  const newAvgTime = newTimeCount > 0 
+    ? Math.round((newTotalTime / newTimeCount) * 100) / 100 
+    : 0;
+  
+  // Ensure we never set NaN
   stats[key] = {
     attempts: newAttempts,
     correct: newCorrect,
-    avgTime: newAvgTime,
-    totalTime: newTotalTime,
+    avgTime: isNaN(newAvgTime) ? 0 : newAvgTime,
+    totalTime: isNaN(newTotalTime) ? 0 : newTotalTime,
+    timeCount: newTimeCount, // Track how many had valid time
   };
 }
 
@@ -63,6 +108,12 @@ router.get('/', protect, async (req, res) => {
     let operationStats = stats.operationStats || {};
     let digitCategoryStats = stats.digitCategoryStats || {};
     let combinedCategoryStats = {};
+    let categoryStats = {};
+    if (stats.categoryStats && stats.categoryStats instanceof Map) {
+      categoryStats = Object.fromEntries(stats.categoryStats);
+    } else if (stats.categoryStats && typeof stats.categoryStats === 'object') {
+      categoryStats = stats.categoryStats;
+    }
 
     if (stats.combinedCategoryStats) {
       if (stats.combinedCategoryStats instanceof Map) {
@@ -85,6 +136,7 @@ router.get('/', protect, async (req, res) => {
       operationStats,
       digitCategoryStats,
       combinedCategoryStats,
+      categoryStats,
       lastPlayedDate: stats.lastPlayedDate,
       sessions: stats.sessions || [],
     });
@@ -103,53 +155,135 @@ router.post('/session', protect, async (req, res) => {
       score,
       timeLimit,
       difficulty,
+      category, // optional: easy, medium, hard, custom, addition, division, multiplication, 2digit-mult
       operations,
       timeElapsed,
       totalProblems,
       problems = [], // array of { a,b,operator,correct,attempted,timeTaken }
     } = req.body;
 
+    // Validate input
+    const validatedTotalProblems = Math.max(0, Number(totalProblems) || 0)
+    const validatedScore = Math.max(0, Number(score) || 0)
+    const validatedTimeElapsed = Math.max(0, Number(timeElapsed) || 0)
+    const validatedProblems = Array.isArray(problems) ? problems : []
+
+    console.log('📊 Saving session:', {
+      userId: req.user._id,
+      score: validatedScore,
+      totalProblems: validatedTotalProblems,
+      difficulty,
+      problemsCount: validatedProblems.length,
+      problemsSample: validatedProblems.slice(0, 3).map(p => `${p.a}${p.operator}${p.b}`),
+    });
+
     let stats = await Stats.findOne({ user: req.user._id });
 
     if (!stats) {
+      console.log('📝 Creating new stats record for user')
       stats = await Stats.create({
         user: req.user._id,
       });
     }
 
-    // Update overall stats
-    stats.totalProblems += totalProblems || 0;
-    stats.correctAnswers += score || 0;
-    stats.totalTime += timeElapsed || 0;
+    // Update overall stats - use validated values
+    stats.totalProblems += validatedTotalProblems
+    stats.correctAnswers += validatedScore
+    
+    // Calculate total time from attempted problems only (not session time)
+    let totalTimeFromProblems = 0
+    let attemptedProblemsCount = 0
+    
+    validatedProblems.forEach((p) => {
+      if (p.attempted && p.timeTaken && p.timeTaken > 0) {
+        totalTimeFromProblems += (p.timeTaken / 1000) // Convert ms to seconds
+        attemptedProblemsCount++
+      }
+    })
+    
+    // Update total time with actual problem times (not session elapsed time)
+    stats.totalTime += totalTimeFromProblems
 
-    // Calculate average time
-    if (stats.totalProblems > 0) {
-      stats.averageTime = Math.round(
-        stats.totalTime / stats.totalProblems
-      );
+    // Calculate average time - only count attempted problems with valid time
+    if (attemptedProblemsCount > 0) {
+      // Calculate average for this session
+      const sessionAvgTime = totalTimeFromProblems / attemptedProblemsCount
+      
+      // Update overall average using weighted average
+      const previousAttemptedCount = stats.totalProblems - validatedTotalProblems
+      const previousTotalTime = stats.totalTime - totalTimeFromProblems
+      const previousAvgTime = previousAttemptedCount > 0 ? previousTotalTime / previousAttemptedCount : 0
+      
+      // Weighted average: (oldAvg * oldCount + newAvg * newCount) / totalCount
+      const totalAttempted = previousAttemptedCount + attemptedProblemsCount
+      if (totalAttempted > 0) {
+        stats.averageTime = ((previousAvgTime * previousAttemptedCount) + (sessionAvgTime * attemptedProblemsCount)) / totalAttempted
+        stats.averageTime = Math.round(stats.averageTime * 100) / 100
+      }
     }
 
     const diffKey = difficulty || 'easy';
+    // Category for Home-page breakdown: use category if provided, else derive from mode (frontend sends category)
+    const categoryKey = category || diffKey;
+    const validCategories = ['easy', 'medium', 'hard', 'custom', 'addition', 'division', 'multiplication', '2digit-mult'];
+    const catKey = validCategories.includes(categoryKey) ? categoryKey : diffKey;
 
-    // Update difficulty stats
-    stats.difficultyStats[diffKey].problems += totalProblems || 0;
-    stats.difficultyStats[diffKey].correct += score || 0;
+    // Ensure difficulty stats exist
+    if (!stats.difficultyStats) {
+      stats.difficultyStats = {
+        easy: { problems: 0, correct: 0 },
+        medium: { problems: 0, correct: 0 },
+        hard: { problems: 0, correct: 0 },
+        custom: { problems: 0, correct: 0 },
+      }
+    }
+    if (!stats.difficultyStats[diffKey]) {
+      stats.difficultyStats[diffKey] = { problems: 0, correct: 0 }
+    }
+
+    // Update difficulty stats - use validated values
+    stats.difficultyStats[diffKey].problems += validatedTotalProblems
+    stats.difficultyStats[diffKey].correct += validatedScore
 
     // Update highest score for this difficulty
     if (!stats.highestScoreByDifficulty) {
       stats.highestScoreByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
     }
-    if ((score || 0) > (stats.highestScoreByDifficulty[diffKey] || 0)) {
-      stats.highestScoreByDifficulty[diffKey] = score || 0;
+    if (validatedScore > (stats.highestScoreByDifficulty[diffKey] || 0)) {
+      stats.highestScoreByDifficulty[diffKey] = validatedScore;
+      console.log(`🏆 New high score for ${diffKey}: ${validatedScore}`)
     }
 
-    // Update average score for this difficulty
+    // Update average score for this difficulty (based on sessions, not problems)
     if (!stats.averageScoreByDifficulty) {
       stats.averageScoreByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
     }
-    const diffProblems = stats.difficultyStats[diffKey].problems || 1;
-    const totalScoreForDiff = (stats.averageScoreByDifficulty[diffKey] || 0) * (diffProblems - (totalProblems || 0)) + (score || 0);
-    stats.averageScoreByDifficulty[diffKey] = Math.round((totalScoreForDiff / diffProblems) * 100) / 100;
+    if (!stats.sessionCountByDifficulty) {
+      stats.sessionCountByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
+    }
+    
+    // Count sessions for this difficulty
+    const sessionCount = (stats.sessionCountByDifficulty[diffKey] || 0) + 1;
+    stats.sessionCountByDifficulty[diffKey] = sessionCount;
+    
+    // Calculate running average: (oldAverage * (count-1) + newScore) / count
+    const oldAverage = stats.averageScoreByDifficulty[diffKey] || 0;
+    const newAverage = (oldAverage * (sessionCount - 1) + validatedScore) / sessionCount;
+    stats.averageScoreByDifficulty[diffKey] = Math.round(newAverage * 100) / 100;
+
+    // Update category stats (for Home-page categories: easy, medium, hard, addition, etc.)
+    if (!stats.categoryStats) stats.categoryStats = new Map();
+    const existingCat = stats.categoryStats.get(catKey) || { problems: 0, correct: 0, highScore: 0, avgScore: 0, sessionCount: 0 };
+    const catSessionCount = existingCat.sessionCount + 1;
+    const catAvgScore = (existingCat.avgScore * (catSessionCount - 1) + validatedScore) / catSessionCount;
+    const catHighScore = Math.max(existingCat.highScore || 0, validatedScore);
+    stats.categoryStats.set(catKey, {
+      problems: (existingCat.problems || 0) + validatedTotalProblems,
+      correct: (existingCat.correct || 0) + validatedScore,
+      highScore: catHighScore,
+      avgScore: Math.round(catAvgScore * 100) / 100,
+      sessionCount: catSessionCount,
+    });
 
     // Initialize aggregates if missing
     if (!stats.operationStats) {
@@ -162,18 +296,25 @@ router.post('/session', protect, async (req, res) => {
       stats.combinedCategoryStats = new Map();
     }
 
-    // Process per-problem stats
-    if (Array.isArray(problems) && problems.length > 0) {
-      problems.forEach((p) => {
+    // Process per-problem stats - use validated problems array
+    if (validatedProblems.length > 0) {
+      console.log(`📝 Processing ${validatedProblems.length} problems for stats`)
+      validatedProblems.forEach((p, index) => {
         try {
           const op = p.operator || '';
           const a = Number(p.a || 0);
           const b = Number(p.b || 0);
           const correct = !!p.correct && !!p.attempted; // only count attempted problems
           const timeMs = Math.max(0, Number(p.timeTaken || 0));
+          
+          // Skip if timeMs is invalid
+          if (isNaN(timeMs) || timeMs < 0) {
+            console.warn('⚠️ Invalid timeMs for problem:', p, 'skipping time tracking')
+            return
+          }
 
           const opKey = getOperationKey(op);
-          const digitCat = getDigitCategory(Math.max(Math.abs(a), Math.abs(b)));
+          const digitCat = getDigitCategory(a, b, op);
           const combinedKey = `${opKey}_${digitCat}`;
 
           // Update operation stats
@@ -182,23 +323,45 @@ router.post('/session', protect, async (req, res) => {
           // Update digit category stats
           updateStatAggregate(stats.digitCategoryStats, digitCat, correct, timeMs);
 
-          // Update combined category stats (Map)
+          // Update combined category stats (Map) - only count attempted with valid time
           const existing = stats.combinedCategoryStats.get(combinedKey) || {
             attempts: 0,
             correct: 0,
             avgTime: 0,
             totalTime: 0,
+            timeCount: 0,
           };
-          const newAttempts = existing.attempts + 1;
-          const newCorrect = existing.correct + (correct ? 1 : 0);
-          const newTotalTime = existing.totalTime + timeMs / 1000;
-          const newAvgTime = Math.round((newTotalTime / newAttempts) * 100) / 100;
+          // Ensure all fields are valid numbers
+          const existingAttempts = Number(existing.attempts || 0) || 0;
+          const existingCorrect = Number(existing.correct || 0) || 0;
+          const existingTotalTime = Number(existing.totalTime || 0) || 0;
+          const existingTimeCount = Number(existing.timeCount || 0) || 0;
+          
+          // Convert and validate time
+          const timeSeconds = Number(timeMs || 0) / 1000;
+          const hasValidTime = !isNaN(timeSeconds) && timeSeconds > 0 && timeMs > 0;
+          
+          const newAttempts = existingAttempts + 1;
+          const newCorrect = existingCorrect + (correct ? 1 : 0);
+          
+          let newTotalTime = existingTotalTime;
+          let newTimeCount = existingTimeCount;
+          
+          if (hasValidTime) {
+            newTotalTime = existingTotalTime + timeSeconds;
+            newTimeCount = existingTimeCount + 1;
+          }
+          
+          const newAvgTime = newTimeCount > 0 
+            ? Math.round((newTotalTime / newTimeCount) * 100) / 100 
+            : 0;
 
           stats.combinedCategoryStats.set(combinedKey, {
             attempts: newAttempts,
             correct: newCorrect,
-            avgTime: newAvgTime,
-            totalTime: newTotalTime,
+            avgTime: isNaN(newAvgTime) ? 0 : newAvgTime,
+            totalTime: isNaN(newTotalTime) ? 0 : newTotalTime,
+            timeCount: newTimeCount,
           });
         } catch (e) {
           console.error('Error processing problem:', e);
@@ -243,7 +406,58 @@ router.post('/session', protect, async (req, res) => {
       stats.sessions = stats.sessions.slice(-50);
     }
 
+    // Clean up any NaN values in nested objects before saving
+    const cleanNumber = (val) => {
+      if (typeof val === 'number' && (isNaN(val) || !isFinite(val))) {
+        return 0;
+      }
+      return val;
+    };
+
+    // Clean operation stats
+    if (stats.operationStats) {
+      Object.keys(stats.operationStats).forEach(key => {
+        if (stats.operationStats[key]) {
+          stats.operationStats[key].avgTime = cleanNumber(stats.operationStats[key].avgTime);
+          stats.operationStats[key].totalTime = cleanNumber(stats.operationStats[key].totalTime);
+          stats.operationStats[key].timeCount = cleanNumber(stats.operationStats[key].timeCount);
+        }
+      });
+    }
+
+    // Clean digit category stats
+    if (stats.digitCategoryStats) {
+      Object.keys(stats.digitCategoryStats).forEach(key => {
+        if (stats.digitCategoryStats[key]) {
+          stats.digitCategoryStats[key].avgTime = cleanNumber(stats.digitCategoryStats[key].avgTime);
+          stats.digitCategoryStats[key].totalTime = cleanNumber(stats.digitCategoryStats[key].totalTime);
+          stats.digitCategoryStats[key].timeCount = cleanNumber(stats.digitCategoryStats[key].timeCount);
+        }
+      });
+    }
+
+    // Clean combined category stats (Map)
+    if (stats.combinedCategoryStats) {
+      stats.combinedCategoryStats.forEach((value, key) => {
+        if (value && typeof value === 'object') {
+          stats.combinedCategoryStats.set(key, {
+            attempts: cleanNumber(value.attempts),
+            correct: cleanNumber(value.correct),
+            avgTime: cleanNumber(value.avgTime),
+            totalTime: cleanNumber(value.totalTime),
+            timeCount: cleanNumber(value.timeCount),
+          });
+        }
+      });
+    }
+
     await stats.save();
+
+    console.log('✅ Session saved. Updated stats:', {
+      totalProblems: stats.totalProblems,
+      correctAnswers: stats.correctAnswers,
+      difficulty: stats.difficultyStats[diffKey],
+    });
 
     res.json({
       message: 'Session saved successfully',
@@ -254,8 +468,12 @@ router.post('/session', protect, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Save session error:', error);
-    res.status(500).json({ message: 'Server error saving session' });
+    console.error('❌ Save session error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error saving session',
+      error: error.message 
+    });
   }
 });
 
@@ -285,6 +503,8 @@ router.put('/reset', protect, async (req, res) => {
     };
     stats.highestScoreByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
     stats.averageScoreByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
+    stats.sessionCountByDifficulty = { easy: 0, medium: 0, hard: 0, custom: 0 };
+    stats.categoryStats = new Map();
     stats.operationStats = {
       add: { attempts: 0, correct: 0, avgTime: 0 },
       sub: { attempts: 0, correct: 0, avgTime: 0 },

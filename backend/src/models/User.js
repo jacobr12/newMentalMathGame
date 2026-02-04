@@ -1,5 +1,4 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose'
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -9,41 +8,40 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
-    unique: true,
     lowercase: true,
     trim: true,
+    sparse: true, // Allows multiple null values but enforces uniqueness for non-null
+    index: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please provide a valid email',
     ],
   },
+  phoneNumber: {
+    type: String,
+    sparse: true, // Allows multiple null values but enforces uniqueness for non-null
+    trim: true,
+    index: true,
+  },
+  firebaseUid: {
+    type: String,
+    required: [true, 'Firebase UID is required'],
+    unique: true,
+    trim: true,
+    index: true,
+  },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
-    minlength: 6,
     select: false, // Don't return password by default
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-});
+})
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
+// Indexes are handled by unique: true and index: true in schema fields above
 
-// Compare password method
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+const User = mongoose.model('User', userSchema)
 
-const User = mongoose.model('User', userSchema);
-
-export default User;
+export default User

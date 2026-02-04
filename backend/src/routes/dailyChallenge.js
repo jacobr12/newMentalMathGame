@@ -286,6 +286,15 @@ router.post('/submit', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Daily challenge submit error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "You've already submitted this challenge for today. One attempt per challenge type per day.",
+        code: 'DUPLICATE',
+      });
+    }
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: error.message || 'Validation failed' });
+    }
     res.status(500).json({ message: 'Server error submitting daily challenge' });
   }
 });

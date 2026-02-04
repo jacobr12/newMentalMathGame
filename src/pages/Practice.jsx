@@ -468,28 +468,12 @@ export default function Practice() {
           flexWrap: 'wrap',
           gap: '1rem',
         }}>
-          <h1 style={{
-            fontSize: '2.5rem',
-            fontWeight: '700',
-            margin: 0,
-            background: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #ec4899 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
+          <h1 className="gradient-text" style={{ fontSize: '2.5rem', fontWeight: '700', margin: 0 }}>
             {mode === 'custom' ? 'Custom Practice' : 'Practice Mode'}
           </h1>
           
           {mode !== 'custom' && (
-            <div style={{
-              display: 'flex',
-              gap: '0.5rem',
-              background: 'rgba(10, 10, 30, 0.5)',
-              backdropFilter: 'blur(16px)',
-              padding: '0.5rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              boxShadow: '0 0 24px rgba(99, 102, 241, 0.1)',
-            }}>
+            <div className="glass-panel" style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem', margin: 0 }}>
               {['easy', 'medium', 'hard'].map((level) => (
                 <motion.button
                   key={level}
@@ -539,17 +523,7 @@ export default function Practice() {
         </div>
         
         {mode === 'custom' && customSettings && (
-          <div style={{
-            background: 'rgba(10, 10, 30, 0.5)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(139, 92, 246, 0.25)',
-            borderRadius: '12px',
-            padding: '1rem 1.5rem',
-            marginBottom: '2rem',
-            fontSize: '0.9rem',
-            color: '#94a3b8',
-            boxShadow: '0 0 30px rgba(99, 102, 241, 0.08)',
-          }}>
+          <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '2rem', fontSize: '0.9rem', color: '#94a3b8' }}>
             <strong style={{ color: '#e2e8f0' }}>Custom Settings:</strong> {' '}
             Operations: {customSettings.operations.map(op => op === '*' ? '×' : op === '/' ? '÷' : op).join(', ')} | {' '}
             Range: {customSettings.min}-{customSettings.max} | {' '}
@@ -557,16 +531,14 @@ export default function Practice() {
           </div>
         )}
         
-        <div
+        <motion.div
           key={problem?.a + problem?.b + problem?.operator}
+          initial={{ opacity: 0.96, scale: 0.99 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.3 }}
+          className="glass-panel-strong"
           style={{
-            background: 'rgba(10, 10, 30, 0.6)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(139, 92, 246, 0.3)',
-            borderRadius: '24px',
             padding: '4rem',
-            boxShadow: '0 0 50px rgba(99, 102, 241, 0.12), 0 0 100px rgba(139, 92, 246, 0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
             textAlign: 'center',
             marginBottom: '2rem',
           }}
@@ -616,24 +588,25 @@ export default function Practice() {
             onChange={(e) => setUserAnswer(e.target.value)}
             disabled={isChecking || timeRemaining <= 0}
             autoFocus
+            className="focus-ring"
             style={{
               width: '100%',
               maxWidth: '300px',
               padding: '1.5rem',
-              borderRadius: '14px',
-              border: '1px solid rgba(139, 92, 246, 0.4)',
-              background: 'rgba(10, 10, 30, 0.6)',
+              borderRadius: '16px',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              background: 'rgba(12, 12, 28, 0.6)',
               color: '#e2e8f0',
               fontSize: '2rem',
               fontWeight: '600',
               textAlign: 'center',
               outline: 'none',
-              fontFamily: 'monospace',
-              boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
+              fontFamily: 'inherit',
+              boxShadow: '0 0 32px rgba(99, 102, 241, 0.08)',
             }}
             whileFocus={{
-              borderColor: '#8b5cf6',
-              boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.2), 0 0 40px rgba(99, 102, 241, 0.15)',
+              borderColor: 'rgba(139, 92, 246, 0.6)',
+              boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.2), 0 0 48px rgba(99, 102, 241, 0.12)',
             }}
           />
           
@@ -692,7 +665,7 @@ export default function Practice() {
               Type your answer to continue
             </p>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   )

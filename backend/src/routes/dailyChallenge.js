@@ -6,6 +6,7 @@ import { protect } from '../middleware/auth.js';
 const router = express.Router();
 
 const PROBLEMS_PER_DAY = 10;
+const CHALLENGE_TYPES = ['division', 'equation', 'multiplication'];
 
 // Seeded RNG (simple LCG) for deterministic problems per day
 function seededRandom(seed) {
@@ -16,21 +17,24 @@ function seededRandom(seed) {
 }
 
 function getDateSeed(dateStr) {
-  // dateStr = YYYY-MM-DD
   const [y, m, d] = dateStr.split('-').map(Number);
   return y * 10000 + m * 100 + d;
 }
 
-// Generate 10 division problems for a date (non-even division, same for everyone)
-function generateProblemsForDate(dateStr) {
-  const seed = getDateSeed(dateStr);
+function getSeedForType(dateStr, type) {
+  const typeHash = type.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return getDateSeed(dateStr) + typeHash * 1000;
+}
+
+// ----- Division: 10 division problems (non-even), same for everyone -----
+function generateDivisionProblems(dateStr) {
+  const seed = getSeedForType(dateStr, 'division');
   const rng = seededRandom(seed);
   const problems = [];
   for (let i = 0; i < PROBLEMS_PER_DAY; i++) {
-    // Divisor 2-99, quotient with decimals so division doesn't divide evenly
     const divisor = Math.floor(rng() * 98) + 2;
     const quotientInt = Math.floor(rng() * 80) + 10;
-    const quotientDec = Math.floor(rng() * 99) / 100; // 0.00 to 0.99
+    const quotientDec = Math.floor(rng() * 99) / 100;
     const quotient = quotientInt + quotientDec;
     const dividend = Math.round(divisor * quotient);
     const exactAnswer = dividend / divisor;
@@ -38,10 +42,108 @@ function generateProblemsForDate(dateStr) {
       problemIndex: i,
       a: dividend,
       b: divisor,
-      exactAnswer, // server-only, not sent to client
+      exactAnswer,
     });
   }
   return problems;
+}
+
+// ----- Equation: 10 mixed expressions like 500/19 + (31*45) - 72 + (19*50), close + speed -----
+// Terms: single integer, division a/b, (a*b), or (a*b ± c). Joined by + or -.
+function generateEquationProblems(dateStr) {
+  const seed = getSeedForType(dateStr, 'equation');
+  const rng = seededRandom(seed);
+  const rand = (lo, hi) => Math.floor(rng() * (hi - lo + 1)) + lo;
+
+  const problems = [];
+  for (let i = 0; i < PROBLEMS_PER_DAY; i++) {
+    const numTerms = 3 + Math.floor(rng() * 3); // 3 to 5 terms
+    const termTypes = ['single', 'division', 'product', 'product_plus'];
+    const terms = [];
+    const ops = []; // between terms: '+' or '-'
+
+    for (let t = 0; t < numTerms; t++) {
+      if (t > 0) ops.push(rng() < 0.5 ? '+' : '-');
+      const kind = termTypes[Math.floor(rng() * termTypes.length)];
+      let expr;
+      switch (kind) {
+        case 'single':
+          expr = String(rand(5, 200));
+          break;
+        case 'division': {
+          const b = rand(2, 25);
+          const q = rand(2, 40);
+          const a = b * q + (rng() < 0.3 ? rand(1, b - 1) : 0); // sometimes non-even
+          expr = `${a} / ${b}`;
+          break;
+        }
+        case 'product': {
+          const a = rand(2, 99);
+          const b = rand(2, 99);
+          expr = `(${a} * ${b})`;
+          break;
+        }
+        case 'product_plus': {
+          const a = rand(2, 50);
+          const b = rand(2, 50);
+          const c = rand(1, 100);
+          expr = rng() < 0.5 ? `(${a} * ${b} + ${c})` : `(${a} * ${b} - ${c})`;
+          break;
+        }
+        default:
+          expr = String(rand(10, 100));
+      }
+      terms.push(expr);
+    }
+
+    const expression = terms.map((term, idx) => (idx === 0 ? term : ` ${ops[idx - 1]} ${term}`)).join('');
+    let exactAnswer;
+    try {
+      exactAnswer = Function(`"use strict"; return (${expression})`)();
+    } catch {
+      exactAnswer = 0;
+    }
+    if (typeof exactAnswer !== 'number' || !Number.isFinite(exactAnswer)) exactAnswer = 0;
+    exactAnswer = Math.round(exactAnswer * 10000) / 10000;
+
+    problems.push({
+      problemIndex: i,
+      expression: expression.trim(),
+      exactAnswer,
+    });
+  }
+  return problems;
+}
+
+// ----- Multiplication: 10 large-number multiplications, close + speed -----
+function generateMultiplicationProblems(dateStr) {
+  const seed = getSeedForType(dateStr, 'multiplication');
+  const rng = seededRandom(seed);
+  const problems = [];
+  for (let i = 0; i < PROBLEMS_PER_DAY; i++) {
+    const digitsA = 2 + Math.floor(rng() * 2); // 2 or 3
+    const digitsB = 3 + Math.floor(rng() * 2); // 3 or 4
+    const minA = 10 ** (digitsA - 1);
+    const maxA = 10 ** digitsA - 1;
+    const minB = 10 ** (digitsB - 1);
+    const maxB = 10 ** digitsB - 1;
+    const a = Math.floor(rng() * (maxA - minA + 1)) + minA;
+    const b = Math.floor(rng() * (maxB - minB + 1)) + minB;
+    const exactAnswer = a * b;
+    problems.push({
+      problemIndex: i,
+      a,
+      b,
+      exactAnswer,
+    });
+  }
+  return problems;
+}
+
+function generateProblemsForDate(dateStr, type = 'division') {
+  if (type === 'equation') return generateEquationProblems(dateStr);
+  if (type === 'multiplication') return generateMultiplicationProblems(dateStr);
+  return generateDivisionProblems(dateStr);
 }
 
 // Score one answer: balance accuracy and speed. Max 100 per problem.
@@ -58,17 +160,30 @@ function scoreAnswer(userAnswer, correctAnswer, timeTakenMs) {
   return Math.round(total * 100) / 100;
 }
 
+function validateType(type) {
+  return CHALLENGE_TYPES.includes(type) ? type : 'division';
+}
+
+function typeFilter(type) {
+  if (type === 'division') {
+    return { $or: [{ type: 'division' }, { type: { $exists: false } }] };
+  }
+  return { type };
+}
+
 // @route   GET /api/daily-challenge/problems
-// @query   date=YYYY-MM-DD (optional, default today UTC)
-// @access  Public (so unauthenticated users can see problems; submit requires auth)
+// @query   date=YYYY-MM-DD, type=division|equation|multiplication
+// @access  Public
 router.get('/problems', (req, res) => {
   try {
     const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
-    const problems = generateProblemsForDate(dateStr);
-    res.json({
-      date: dateStr,
-      problems: problems.map(({ problemIndex, a, b }) => ({ problemIndex, a, b })),
+    const type = validateType(req.query.type || 'division');
+    const problems = generateProblemsForDate(dateStr, type);
+    const clientProblems = problems.map((p) => {
+      if (p.expression != null) return { problemIndex: p.problemIndex, expression: p.expression };
+      return { problemIndex: p.problemIndex, a: p.a, b: p.b };
     });
+    res.json({ date: dateStr, type, problems: clientProblems });
   } catch (error) {
     console.error('Daily challenge problems error:', error);
     res.status(500).json({ message: 'Server error fetching daily challenge' });
@@ -76,16 +191,17 @@ router.get('/problems', (req, res) => {
 });
 
 // @route   POST /api/daily-challenge/score-only
-// @body    { date: YYYY-MM-DD, answers: [ { problemIndex, userAnswer, timeTaken } ] }
-// @access  Public (no save - so unauthenticated users can see their score)
+// @body    { date, type?, answers }
+// @access  Public
 router.post('/score-only', (req, res) => {
   try {
-    const { date: dateStr, answers } = req.body;
+    const { date: dateStr, type: bodyType, answers } = req.body;
     const date = dateStr || new Date().toISOString().slice(0, 10);
+    const type = validateType(bodyType || req.query.type || 'division');
     if (!Array.isArray(answers) || answers.length !== PROBLEMS_PER_DAY) {
       return res.status(400).json({ message: `Must submit exactly ${PROBLEMS_PER_DAY} answers` });
     }
-    const problems = generateProblemsForDate(date);
+    const problems = generateProblemsForDate(date, type);
     const results = [];
     let totalScore = 0;
     for (let i = 0; i < PROBLEMS_PER_DAY; i++) {
@@ -112,18 +228,18 @@ router.post('/score-only', (req, res) => {
 });
 
 // @route   POST /api/daily-challenge/submit
-// @body    { date: YYYY-MM-DD, answers: [ { problemIndex, userAnswer, timeTaken } ] }
+// @body    { date, type?, answers }
 // @access  Private
-// One attempt per user per day: if already submitted, reject.
 router.post('/submit', protect, async (req, res) => {
   try {
-    const { date: dateStr, answers } = req.body;
+    const { date: dateStr, type: bodyType, answers } = req.body;
     const date = dateStr || new Date().toISOString().slice(0, 10);
+    const type = validateType(bodyType || 'division');
     if (!Array.isArray(answers) || answers.length !== PROBLEMS_PER_DAY) {
       return res.status(400).json({ message: `Must submit exactly ${PROBLEMS_PER_DAY} answers` });
     }
 
-    const existing = await DailyChallenge.findOne({ date, user: req.user._id });
+    const existing = await DailyChallenge.findOne({ date, user: req.user._id, ...typeFilter(type) });
     if (existing) {
       return res.status(403).json({
         message: "You've already completed today's challenge. One attempt per day.",
@@ -132,7 +248,7 @@ router.post('/submit', protect, async (req, res) => {
       });
     }
 
-    const problems = generateProblemsForDate(date);
+    const problems = generateProblemsForDate(date, type);
     const results = [];
     let totalScore = 0;
     for (let i = 0; i < PROBLEMS_PER_DAY; i++) {
@@ -155,6 +271,7 @@ router.post('/submit', protect, async (req, res) => {
 
     await DailyChallenge.create({
       date,
+      type,
       user: req.user._id,
       score: totalScore,
       answers: results,
@@ -174,13 +291,14 @@ router.post('/submit', protect, async (req, res) => {
 });
 
 // @route   GET /api/daily-challenge/leaderboard
-// @query   date=YYYY-MM-DD, limit=20
+// @query   date, type?, limit
 // @access  Public
 router.get('/leaderboard', async (req, res) => {
   try {
     const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const type = validateType(req.query.type || 'division');
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const docs = await DailyChallenge.find({ date: dateStr })
+    const docs = await DailyChallenge.find({ date: dateStr, ...typeFilter(type) })
       .sort({ score: -1 })
       .limit(limit)
       .populate('user', 'name email');
@@ -190,7 +308,7 @@ router.get('/leaderboard', async (req, res) => {
       name: d.user?.name || 'Anonymous',
       score: d.score,
     }));
-    res.json({ date: dateStr, leaderboard });
+    res.json({ date: dateStr, type, leaderboard });
   } catch (error) {
     console.error('Daily challenge leaderboard error:', error);
     res.status(500).json({ message: 'Server error fetching leaderboard' });
@@ -198,14 +316,16 @@ router.get('/leaderboard', async (req, res) => {
 });
 
 // @route   GET /api/daily-challenge/me
-// @query   date=YYYY-MM-DD
+// @query   date, type?
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
     const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
-    const doc = await DailyChallenge.findOne({ date: dateStr, user: req.user._id });
+    const type = validateType(req.query.type || 'division');
+    const doc = await DailyChallenge.findOne({ date: dateStr, user: req.user._id, ...typeFilter(type) });
     res.json({
       date: dateStr,
+      type,
       score: doc ? doc.score : null,
       submitted: !!doc,
     });
@@ -216,8 +336,8 @@ router.get('/me', protect, async (req, res) => {
 });
 
 // @route   DELETE /api/daily-challenge/reset-day
-// @query   date=YYYY-MM-DD (optional, default today), secret=RESET_DAILY_SECRET from env
-// @access  Protected by secret (for admin / before going live)
+// @query   date?, type?, secret
+// @access  Protected by secret
 router.delete('/reset-day', async (req, res) => {
   try {
     const expectedSecret = process.env.RESET_DAILY_SECRET;
@@ -225,9 +345,12 @@ router.delete('/reset-day', async (req, res) => {
       return res.status(403).json({ message: 'Invalid or missing secret' });
     }
     const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
-    const result = await DailyChallenge.deleteMany({ date: dateStr });
+    const type = req.query.type;
+    const filter = { date: dateStr };
+    if (type && CHALLENGE_TYPES.includes(type)) filter.type = type;
+    const result = await DailyChallenge.deleteMany(filter);
     res.json({
-      message: `Daily challenge reset for ${dateStr}`,
+      message: `Daily challenge reset for ${dateStr}${type ? ` (type: ${type})` : ''}`,
       deletedCount: result.deletedCount,
     });
   } catch (error) {

@@ -4,25 +4,16 @@ import Background3D from '../components/Background3D'
 import Navigation from '../components/Navigation'
 import { statsAPI } from '../services/api'
 
-const glassStyle = {
-  background: 'rgba(10, 10, 30, 0.45)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(139, 92, 246, 0.25)',
-  boxShadow: '0 0 40px rgba(99, 102, 241, 0.1), 0 0 80px rgba(139, 92, 246, 0.05), inset 0 1px 0 rgba(255,255,255,0.03)',
-}
+const statTransition = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.35 }
 
 const StatCard = ({ title, value, subtitle, icon, delay = 0 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
+    initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    style={{
-      ...glassStyle,
-      borderRadius: '20px',
-      padding: '2rem',
-    }}
-    whileHover={{ scale: 1.02, borderColor: 'rgba(139, 92, 246, 0.45)', boxShadow: '0 0 50px rgba(99, 102, 241, 0.15)' }}
+    transition={{ delay, ...statTransition }}
+    className="glass-panel"
+    style={{ padding: '2rem' }}
+    whileHover={{ scale: 1.02, borderColor: 'rgba(139, 92, 246, 0.4)', boxShadow: '0 0 48px rgba(99, 102, 241, 0.12)' }}
   >
     <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{icon}</div>
     <h3 style={{
@@ -35,14 +26,7 @@ const StatCard = ({ title, value, subtitle, icon, delay = 0 }) => (
     }}>
       {title}
     </h3>
-    <p style={{
-      fontSize: '2.5rem',
-      fontWeight: '700',
-      margin: '0 0 0.25rem 0',
-      background: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #ec4899 100%)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-    }}>
+    <p className="gradient-text" style={{ fontSize: '2.5rem', fontWeight: '700', margin: '0 0 0.25rem 0' }}>
       {value}
     </p>
     {subtitle && (
@@ -55,17 +39,15 @@ const StatCard = ({ title, value, subtitle, icon, delay = 0 }) => (
 
 const CategoryBox = ({ title, attempts, avgTime, delay = 0 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
+    initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
+    transition={{ delay, ...statTransition }}
+    className="glass-panel"
     style={{
       padding: '1.5rem',
-      borderRadius: '14px',
-      background: 'rgba(10, 10, 30, 0.4)',
-      border: '1px solid rgba(139, 92, 246, 0.2)',
-      backdropFilter: 'blur(10px)',
-      boxShadow: '0 0 20px rgba(99, 102, 241, 0.06)',
+      borderColor: 'rgba(139, 92, 246, 0.18)',
     }}
+    whileHover={{ borderColor: 'rgba(139, 92, 246, 0.3)' }}
   >
     <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>{title}</div>
     <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#6366f1', marginBottom: '0.5rem' }}>
@@ -142,18 +124,11 @@ export default function Stats() {
         padding: '3rem 2rem',
       }}>
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={statTransition}
         >
-          <h1 style={{
-            fontSize: '3rem',
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0',
-            background: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #ec4899 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
+          <h1 className="gradient-text" style={{ fontSize: '3rem', fontWeight: '700', margin: '0 0 0.5rem 0' }}>
             Your Statistics
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 0 3rem 0' }}>
@@ -193,15 +168,11 @@ export default function Stats() {
 
         {/* Difficulty Stats: High Scores & Average Scores */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          style={{
-            ...glassStyle,
-            borderRadius: '20px',
-            padding: '2rem',
-            marginBottom: '2rem',
-          }}
+          transition={{ delay: 0.5, ...statTransition }}
+          className="glass-panel"
+          style={{ padding: '2rem', marginBottom: '2rem' }}
         >
           <h2 style={{ color: '#e2e8f0', fontSize: '1.8rem', marginTop: 0, marginBottom: '1.5rem' }}>
             Difficulty Breakdown
@@ -262,15 +233,11 @@ export default function Stats() {
 
         {/* Category Stats (matches Home page: Easy, Medium, Hard, practice modes, Custom) */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          style={{
-            ...glassStyle,
-            borderRadius: '20px',
-            padding: '2rem',
-            marginBottom: '2rem',
-          }}
+          transition={{ delay: 0.55, ...statTransition }}
+          className="glass-panel"
+          style={{ padding: '2rem', marginBottom: '2rem' }}
         >
           <h2 style={{ color: '#e2e8f0', fontSize: '1.8rem', marginTop: 0, marginBottom: '0.5rem' }}>
             By Category
@@ -332,15 +299,11 @@ export default function Stats() {
 
         {/* Operation Stats */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          style={{
-            ...glassStyle,
-            borderRadius: '20px',
-            padding: '2rem',
-            marginBottom: '2rem',
-          }}
+          transition={{ delay: 0.6, ...statTransition }}
+          className="glass-panel"
+          style={{ padding: '2rem', marginBottom: '2rem' }}
         >
           <h2 style={{ color: '#e2e8f0', fontSize: '1.8rem', marginTop: 0, marginBottom: '1.5rem' }}>
             By Operation
@@ -362,15 +325,11 @@ export default function Stats() {
 
         {/* Digit Category Stats */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          style={{
-            ...glassStyle,
-            borderRadius: '20px',
-            padding: '2rem',
-            marginBottom: '2rem',
-          }}
+          transition={{ delay: 0.7, ...statTransition }}
+          className="glass-panel"
+          style={{ padding: '2rem', marginBottom: '2rem' }}
         >
           <h2 style={{ color: '#e2e8f0', fontSize: '1.8rem', marginTop: 0, marginBottom: '1.5rem' }}>
             By Digit Difficulty
@@ -392,14 +351,11 @@ export default function Stats() {
 
         {/* Combined Category Stats: full grid for every operation × digit */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          style={{
-            ...glassStyle,
-            borderRadius: '20px',
-            padding: '2rem',
-          }}
+          transition={{ delay: 0.8, ...statTransition }}
+          className="glass-panel"
+          style={{ padding: '2rem' }}
         >
           <h2 style={{ color: '#e2e8f0', fontSize: '1.8rem', marginTop: 0, marginBottom: '0.5rem' }}>
             Operation + Digit Combinations

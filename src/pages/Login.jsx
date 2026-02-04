@@ -79,9 +79,9 @@ export default function Login() {
       <Background3D />
       
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.45 }}
         style={{
           position: 'relative',
           zIndex: 10,
@@ -90,15 +90,7 @@ export default function Login() {
           padding: '2rem',
         }}
       >
-        <div style={{
-          background: 'rgba(10, 10, 30, 0.6)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(139, 92, 246, 0.3)',
-          borderRadius: '20px',
-          padding: '3rem',
-          boxShadow: '0 0 50px rgba(99, 102, 241, 0.12), 0 0 100px rgba(139, 92, 246, 0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
-        }}>
+        <div className="glass-panel-strong" style={{ padding: '3rem' }}>
           <motion.h1
             style={{
               margin: '0 0 0.5rem 0',
@@ -126,16 +118,7 @@ export default function Login() {
           </p>
 
           {/* Auth Method Toggle */}
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '1.5rem',
-            background: 'rgba(10, 10, 30, 0.5)',
-            backdropFilter: 'blur(12px)',
-            padding: '0.5rem',
-            borderRadius: '10px',
-            border: '1px solid rgba(139, 92, 246, 0.25)',
-          }}>
+          <div className="glass-panel" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', padding: '0.5rem' }}>
             <motion.button
               type="button"
               onClick={() => {
@@ -222,19 +205,20 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="focus-ring"
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(139, 92, 246, 0.35)',
-                    background: 'rgba(10, 10, 30, 0.5)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    background: 'rgba(12, 12, 28, 0.5)',
                     color: '#e2e8f0',
                     fontSize: '1rem',
                     outline: 'none',
                   }}
                   whileFocus={{
-                    borderColor: '#6366f1',
-                    boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.1)',
+                    borderColor: 'rgba(99, 102, 241, 0.6)',
+                    boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.2)',
                   }}
                 />
               </div>
@@ -254,19 +238,20 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="focus-ring"
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(139, 92, 246, 0.35)',
-                    background: 'rgba(10, 10, 30, 0.5)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    background: 'rgba(12, 12, 28, 0.5)',
                     color: '#e2e8f0',
                     fontSize: '1rem',
                     outline: 'none',
                   }}
                   whileFocus={{
-                    borderColor: '#6366f1',
-                    boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.1)',
+                    borderColor: 'rgba(99, 102, 241, 0.6)',
+                    boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.2)',
                   }}
                 />
               </div>

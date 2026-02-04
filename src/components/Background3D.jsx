@@ -18,7 +18,7 @@ function Starfield() {
   }, [])
   useFrame((state) => {
     if (ref.current) {
-      ref.current.rotation.y = state.clock.elapsedTime * 0.02
+      ref.current.rotation.y = state.clock.elapsedTime * 0.012
     }
   })
   return (
@@ -90,7 +90,7 @@ function ParticleField() {
   }, [])
   useFrame((state) => {
     if (ref.current) {
-      ref.current.rotation.y = state.clock.elapsedTime * 0.015
+      ref.current.rotation.y = state.clock.elapsedTime * 0.01
     }
   })
   return (
@@ -122,7 +122,7 @@ export default function Background3D() {
           powerPreference: 'high-performance',
         }}
       >
-        <fog attach="fog" args={['#0f0a1f', 20, 70]} />
+        <fog attach="fog" args={['#0d0a1a', 22, 72]} />
         <color attach="background" args={['#050308']} />
         <ambientLight intensity={0.15} />
         <pointLight position={[10, 10, 10]} intensity={0.4} color="#8b5cf6" />

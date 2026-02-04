@@ -63,20 +63,11 @@ export default function CustomPracticeConfig() {
   
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      style={{
-        background: 'rgba(10, 10, 30, 0.6)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        border: '1px solid rgba(139, 92, 246, 0.3)',
-        borderRadius: '24px',
-        padding: '3rem',
-        boxShadow: '0 0 50px rgba(99, 102, 241, 0.12), 0 0 100px rgba(139, 92, 246, 0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
-        maxWidth: '600px',
-        margin: '2rem auto',
-      }}
+      transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.45 }}
+      className="glass-panel-strong"
+      style={{ maxWidth: '600px', margin: '2rem auto', padding: '3rem' }}
     >
       <h2 style={{
         fontSize: '2rem',

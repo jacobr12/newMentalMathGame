@@ -138,37 +138,41 @@ export const statsAPI = {
   },
 };
 
-// Daily challenge API
+// Daily challenge API (type: 'division' | 'equation' | 'multiplication')
 export const dailyChallengeAPI = {
-  getProblems: async (date) => {
-    const q = date ? `?date=${date}` : '';
-    return apiRequest(`/daily-challenge/problems${q}`);
+  getProblems: async (date, type = 'division') => {
+    const q = new URLSearchParams();
+    if (date) q.set('date', date);
+    if (type) q.set('type', type);
+    return apiRequest(`/daily-challenge/problems?${q}`);
   },
 
-  submit: async (date, answers) => {
+  submit: async (date, answers, type = 'division') => {
     return apiRequest('/daily-challenge/submit', {
       method: 'POST',
-      body: JSON.stringify({ date, answers }),
+      body: JSON.stringify({ date, answers, type }),
     });
   },
 
-  getLeaderboard: async (date, limit = 20) => {
+  getLeaderboard: async (date, limit = 20, type = 'division') => {
     const q = new URLSearchParams();
     if (date) q.set('date', date);
     if (limit) q.set('limit', limit);
+    if (type) q.set('type', type);
     return apiRequest(`/daily-challenge/leaderboard?${q}`);
   },
 
-  getMyScore: async (date) => {
-    const q = date ? `?date=${date}` : '';
-    return apiRequest(`/daily-challenge/me${q}`);
+  getMyScore: async (date, type = 'division') => {
+    const q = new URLSearchParams();
+    if (date) q.set('date', date);
+    if (type) q.set('type', type);
+    return apiRequest(`/daily-challenge/me?${q}`);
   },
 
-  // Get score without saving (for unauthenticated users)
-  getScoreOnly: async (date, answers) => {
+  getScoreOnly: async (date, answers, type = 'division') => {
     return apiRequest('/daily-challenge/score-only', {
       method: 'POST',
-      body: JSON.stringify({ date, answers }),
+      body: JSON.stringify({ date, answers, type }),
     });
   },
 };

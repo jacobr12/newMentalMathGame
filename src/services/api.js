@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '');
 
 // Get token from localStorage (Firebase token)
 const getToken = () => {
@@ -40,22 +40,44 @@ const apiRequest = async (endpoint, options = {}) => {
     ...options,
   };
 
-  let response = await fetch(`${API_URL}${endpoint}`, config);
-  let data = await response.json();
+  const url = `${API_URL}${endpoint}`;
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch (err) {
+    const isNetworkError = !err.message || err.message === 'Failed to fetch' || err.name === 'TypeError';
+    const base = API_URL.replace(/\/api\/?$/, '');
+    const hint = isNetworkError
+      ? `Cannot reach backend at ${base}. Set VITE_API_URL in Vercel (e.g. https://your-app.onrender.com/api) and redeploy.`
+      : err.message;
+    console.error('[API] Request failed:', url, err);
+    throw new Error(hint);
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(response.ok ? 'Invalid response' : `Server error ${response.status}`);
+  }
 
   // If token expired, try to refresh and retry once
-  if (response.status === 401 && data.code === 'TOKEN_EXPIRED') {
+  if (response.status === 401 && data && data.code === 'TOKEN_EXPIRED') {
     console.log('🔄 Token expired, refreshing...');
     token = await getFreshToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      response = await fetch(`${API_URL}${endpoint}`, config);
-      data = await response.json();
+      response = await fetch(url, config);
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(response.ok ? 'Invalid response' : `Server error ${response.status}`);
+      }
     }
   }
 
   if (!response.ok) {
-    throw new Error(data.message || 'An error occurred');
+    throw new Error((data && data.message) || 'An error occurred');
   }
 
   return data;

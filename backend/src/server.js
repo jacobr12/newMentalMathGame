@@ -17,9 +17,15 @@ connectDB();
 
 const app = express();
 
-// Middleware
+// Middleware: allow frontend origin (and any *.vercel.app for previews)
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (origin === allowedOrigin) return cb(null, true);
+    if (origin.endsWith('.vercel.app')) return cb(null, true);
+    cb(null, false);
+  },
   credentials: true,
 }));
 app.use(express.json());

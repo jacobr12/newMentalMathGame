@@ -152,30 +152,37 @@ function generateProblemsForDate(dateStr, type = 'division') {
   return generateDivisionProblems(dateStr);
 }
 
-// Per-mode scoring: a and b are exponents (higher = more "all-or-nothing"), T = seconds when speed score hits 0.
-// Formula: acc01 = clamp(1 - min(relError,1), 0, 1), speed01 = clamp(1 - timeSeconds/T, 0, 1), total01 = acc01^a * speed01^b, score = 100*total01.
+// Two-phase speed: full score for first graceSeconds; then drop to 50% by T1; then drop to 0 by T2.
 const SCORING_BY_TYPE = {
-  division: { a: 2, b: 1.5, T: 25 },
-  equation: { a: 2, b: 1.5, T: 40 }, // equations take longer — more time before speed zeros out
-  multiplication: { a: 2, b: 1.5, T: 30 },
+  division: { a: 2, b: 1.5, graceSeconds: 5, T1: 15, T2: 25 },
+  equation: { a: 2, b: 1.5, graceSeconds: 10, T1: 20, T2: 45 },
+  multiplication: { a: 2, b: 1.5, graceSeconds: 7, T1: 15, T2: 28 },
 };
 
 function clamp(x, lo, hi) {
   return Math.max(lo, Math.min(hi, x));
 }
 
-// Score one answer: accuracy and speed combined with exponential weighting. Max 100 per problem.
-// If accuracy is bad, score ≈ 0 regardless of speed; if time > T, speed01 = 0 so score = 0.
+function speed01FromTime(timeSeconds, type = 'division') {
+  const p = SCORING_BY_TYPE[type] || SCORING_BY_TYPE.division;
+  const { graceSeconds = 0, T1, T2 } = p;
+  if (timeSeconds <= graceSeconds) return 1;
+  if (timeSeconds <= T1) return clamp(1 - (timeSeconds - graceSeconds) / (T1 - graceSeconds) * 0.5, 0.5, 1);
+  if (timeSeconds <= T2) return clamp(0.5 - (timeSeconds - T1) / (T2 - T1) * 0.5, 0, 0.5);
+  return 0;
+}
+
+// Score one answer: accuracy and speed (two-phase drop).
 function scoreAnswer(userAnswer, correctAnswer, timeTakenMs, type = 'division') {
   const params = SCORING_BY_TYPE[type] || SCORING_BY_TYPE.division;
-  const { a, b, T } = params;
+  const { a, b } = params;
   const correct = Number(correctAnswer);
   const user = Number(userAnswer);
   if (isNaN(user)) return 0;
   const relError = correct === 0 ? (user === 0 ? 0 : 1) : Math.abs(user - correct) / Math.abs(correct);
   const acc01 = clamp(1 - Math.min(relError, 1), 0, 1);
   const timeSeconds = timeTakenMs / 1000;
-  const speed01 = clamp(1 - timeSeconds / T, 0, 1);
+  const speed01 = speed01FromTime(timeSeconds, type);
   const total01 = (acc01 ** a) * (speed01 ** b);
   return Math.round(100 * total01 * 100) / 100;
 }

@@ -8,10 +8,25 @@ import { useAuth } from '../context/AuthContext'
 
 const pageTransition = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.35 }
 
+// Must match backend: two-phase speed (full → drop to 50% by T1 → drop to 0 by T2)
+const SPEED_PARAMS = {
+  division: { graceSeconds: 5, T1: 15, T2: 25 },
+  equation: { graceSeconds: 10, T1: 20, T2: 45 },
+  multiplication: { graceSeconds: 7, T1: 15, T2: 28 },
+}
+function speedPtsFromElapsedMs(elapsedMs, type) {
+  const p = SPEED_PARAMS[type] || SPEED_PARAMS.division
+  const t = elapsedMs / 1000
+  if (t <= p.graceSeconds) return 100
+  if (t <= p.T1) return Math.round(100 - (t - p.graceSeconds) / (p.T1 - p.graceSeconds) * 50)
+  if (t <= p.T2) return Math.round(50 - (t - p.T1) / (p.T2 - p.T1) * 50)
+  return 0
+}
+
 const CHALLENGE_TYPES = [
-  { id: 'division', label: 'Division', desc: '10 division problems (non-even). Close + fast.' },
-  { id: 'equation', label: 'Equation', desc: '10 mixed expressions: (a×b), a÷b, +, −. e.g. 500/19 + (31×45) − 72. Close + fast.' },
-  { id: 'multiplication', label: 'Large multiplication', desc: '10 big number multiplications. Close + fast.' },
+  { id: 'division', label: 'Division', desc: '10 division problems. Full speed 0–5s, then drops until 15s, then drops to zero by 25s.', timeHint: 'Division: full speed bonus 0–5s, then score drops until 15s, then drops more after. Don’t go over 25s.' },
+  { id: 'equation', label: 'Equation', desc: '10 mixed expressions. Full speed 0–10s, then drops until 20s, then drops to zero by 45s.', timeHint: 'Equation: full speed 0–10s, then drops until 20s, then drops more. Don’t go over 45s.' },
+  { id: 'multiplication', label: 'Large multiplication', desc: '10 big multiplications. Full speed 0–7s, then drops until 15s, then drops to zero by 28s.', timeHint: 'Multiplication: full speed 0–7s, then drops until 15s, then drops more. Don’t go over 28s.' },
 ]
 const VALID_TYPES = ['division', 'equation', 'multiplication']
 
@@ -33,6 +48,7 @@ export default function DailyChallenge() {
   const [answers, setAnswers] = useState([])
   const [userAnswer, setUserAnswer] = useState('')
   const [problemStartTime, setProblemStartTime] = useState(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [result, setResult] = useState(null)
   const [leaderboard, setLeaderboard] = useState([])
   const [myScore, setMyScore] = useState(null)
@@ -89,7 +105,9 @@ export default function DailyChallenge() {
     setAnswers([])
     setUserAnswer('')
     setResult(null)
-    setProblemStartTime(Date.now())
+    const now = Date.now()
+    setProblemStartTime(now)
+    setElapsedMs(0)
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
@@ -116,8 +134,18 @@ export default function DailyChallenge() {
     }
     setCurrentIndex((i) => i + 1)
     setProblemStartTime(Date.now())
+    setElapsedMs(0)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
+
+  // Live timer and speed pts during play
+  useEffect(() => {
+    if (step !== 'play' || problemStartTime == null) return
+    const tick = () => setElapsedMs(Date.now() - problemStartTime)
+    tick()
+    const id = setInterval(tick, 200)
+    return () => clearInterval(id)
+  }, [step, problemStartTime, currentIndex])
 
   const finishChallenge = async (finalAnswers) => {
     setStep('results')
@@ -217,7 +245,7 @@ export default function DailyChallenge() {
           ))}
         </div>
         <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-          {CHALLENGE_TYPES.find((t) => t.id === challengeType)?.desc}. One attempt per day per challenge. Score: accuracy × speed (both matter; equations get more time). Max 1000 pts.
+          {CHALLENGE_TYPES.find((t) => t.id === challengeType)?.desc} One attempt per day. Score = accuracy × speed. Max 1000 pts.
         </p>
 
         {step === 'intro' && (
@@ -236,9 +264,14 @@ export default function DailyChallenge() {
                 You&apos;ve already completed today&apos;s challenge. Your score: <strong>{myScore}</strong> pts
               </p>
             )}
-            <p style={{ color: '#94a3b8', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            <p style={{ color: '#94a3b8', marginBottom: '0.75rem', lineHeight: 1.6 }}>
               You&apos;ll get 10 problems. One attempt per day. Type your answer (decimal allowed) and press Enter.
-              Your score combines accuracy and speed: both matter, and going over the time limit or missing badly zeros the score. Equations allow more time per problem.
+            </p>
+            <p style={{ color: '#94a3b8', marginBottom: '0.5rem', lineHeight: 1.6 }}>
+              <strong style={{ color: '#e2e8f0' }}>Scoring:</strong> Get in the ballpark—guess if you need to; it&apos;s better to answer close and fast than to take too long. A <strong>Speed</strong> number (max 100 pts per problem) is shown and drops as time passes. Stay under the limit or you get 0 speed pts.
+            </p>
+            <p style={{ color: '#a78bfa', marginBottom: '1.5rem', lineHeight: 1.6, fontSize: '0.95rem' }}>
+              {CHALLENGE_TYPES.find((t) => t.id === challengeType)?.timeHint}
             </p>
             <motion.button
               onClick={startChallenge}
@@ -275,6 +308,14 @@ export default function DailyChallenge() {
           >
             <div style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
               Problem {currentIndex + 1} of {problems.length}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              <span style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                Time: <strong style={{ color: '#e2e8f0' }}>{(elapsedMs / 1000).toFixed(1)}s</strong>
+              </span>
+              <span style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                Speed: <strong style={{ color: speedPtsFromElapsedMs(elapsedMs, challengeType) >= 50 ? '#86efac' : speedPtsFromElapsedMs(elapsedMs, challengeType) > 0 ? '#fcd34d' : '#f87171' }}>{speedPtsFromElapsedMs(elapsedMs, challengeType)} pts</strong>
+              </span>
             </div>
             <div style={{ fontSize: challengeType === 'equation' ? '2rem' : '3.5rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '2rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>
               {challengeType === 'equation' && currentProblem.expression != null

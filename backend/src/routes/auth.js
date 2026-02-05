@@ -134,7 +134,11 @@ router.post(
 router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password').lean()
-    const payload = { ...user, isAdmin: isAdmin(user) }
+    const admin = isAdmin(user)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[auth/me] email:', user?.email ?? '(none)', '| isAdmin:', admin, '| ADMIN_EMAILS set:', !!process.env.ADMIN_EMAILS)
+    }
+    const payload = { ...user, isAdmin: admin }
     res.json(payload)
   } catch (error) {
     console.error('Get user error:', error)

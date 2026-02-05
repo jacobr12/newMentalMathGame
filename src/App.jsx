@@ -7,6 +7,7 @@ import Practice from './pages/Practice'
 import Stats from './pages/Stats'
 import Profile from './pages/Profile'
 import DailyChallenge from './pages/DailyChallenge'
+import Admin from './pages/Admin'
 import './App.css'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/daily" element={<DailyChallenge />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -11,6 +11,7 @@ export default function Navigation() {
     { path: '/daily', label: 'Daily' },
     { path: '/practice', label: 'Practice' },
     { path: '/stats', label: 'Stats' },
+    ...(user?.isAdmin ? [{ path: '/admin', label: 'Admin' }] : []),
   ]
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()

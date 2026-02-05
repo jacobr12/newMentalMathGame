@@ -176,3 +176,19 @@ export const dailyChallengeAPI = {
     });
   },
 };
+
+// Admin API (requires admin account)
+export const adminAPI = {
+  getUsers: async () => {
+    return apiRequest('/admin/users');
+  },
+
+  resetDailyChallenge: async (date, type = null) => {
+    const opts = { method: 'DELETE' };
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (type) params.set('type', type);
+    const q = params.toString();
+    return apiRequest(`/admin/daily-challenge/reset${q ? `?${q}` : ''}`, opts);
+  },
+};

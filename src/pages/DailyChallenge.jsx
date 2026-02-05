@@ -217,7 +217,7 @@ export default function DailyChallenge() {
           ))}
         </div>
         <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-          {CHALLENGE_TYPES.find((t) => t.id === challengeType)?.desc}. One attempt per day per challenge. Score: accuracy (60%) + speed (40%). Max 1000 pts.
+          {CHALLENGE_TYPES.find((t) => t.id === challengeType)?.desc}. One attempt per day per challenge. Score: accuracy × speed (both matter; equations get more time). Max 1000 pts.
         </p>
 
         {step === 'intro' && (
@@ -238,7 +238,7 @@ export default function DailyChallenge() {
             )}
             <p style={{ color: '#94a3b8', marginBottom: '1.5rem', lineHeight: 1.6 }}>
               You&apos;ll get 10 problems. One attempt per day. Type your answer (decimal allowed) and press Enter.
-              Your score combines how close you are (60%) and how fast you answer (40%).
+              Your score combines accuracy and speed: both matter, and going over the time limit or missing badly zeros the score. Equations allow more time per problem.
             </p>
             <motion.button
               onClick={startChallenge}

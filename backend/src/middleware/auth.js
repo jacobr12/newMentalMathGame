@@ -46,6 +46,29 @@ export const protect = async (req, res, next) => {
   }
 
   if (!token) {
-    return res.status(401).json({ message: 'Not authorized, no token' })
+      return res.status(401).json({ message: 'Not authorized, no token' })
   }
+}
+
+// Admin-only: require protect first, then require user email in ADMIN_EMAILS
+const adminEmails = () =>
+  (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+
+export const adminOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authorized' })
+  }
+  const email = (req.user.email || '').toLowerCase()
+  if (!adminEmails().includes(email)) {
+    return res.status(403).json({ message: 'Admin access required' })
+  }
+  next()
+}
+
+export function isAdmin(user) {
+  if (!user || !user.email) return false
+  return adminEmails().includes((user.email || '').toLowerCase())
 }

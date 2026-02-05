@@ -5,6 +5,7 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import statsRoutes from './routes/stats.js';
 import dailyChallengeRoutes from './routes/dailyChallenge.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/daily-challenge', dailyChallengeRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

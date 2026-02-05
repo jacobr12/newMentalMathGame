@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator'
 import admin from '../config/firebase-admin.js'
 import User from '../models/User.js'
 import Stats from '../models/Stats.js'
-import { protect } from '../middleware/auth.js'
+import { protect, isAdmin } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -129,12 +129,13 @@ router.post(
 )
 
 // @route   GET /api/auth/me
-// @desc    Get current user
+// @desc    Get current user (includes isAdmin when email is in ADMIN_EMAILS)
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password')
-    res.json(user)
+    const user = await User.findById(req.user._id).select('-password').lean()
+    const payload = { ...user, isAdmin: isAdmin(user) }
+    res.json(payload)
   } catch (error) {
     console.error('Get user error:', error)
     res.status(500).json({ message: 'Server error' })

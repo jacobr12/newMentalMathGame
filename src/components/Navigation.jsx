@@ -6,6 +6,8 @@ const navTransition = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.35 }
 
 export default function Navigation() {
   const location = useLocation()
+  const { user, isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
   const navItems = [
     { path: '/', label: 'Home' },
     { path: '/daily', label: 'Daily' },
@@ -13,8 +15,6 @@ export default function Navigation() {
     { path: '/stats', label: 'Stats' },
     ...(user?.isAdmin ? [{ path: '/admin', label: 'Admin' }] : []),
   ]
-  const { user, isAuthenticated, logout } = useAuth()
-  const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()

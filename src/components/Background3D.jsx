@@ -1,7 +1,21 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, Component } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Points, PointMaterial } from '@react-three/drei'
 import * as THREE from 'three'
+
+// If WebGL/Canvas fails (e.g. on some Vercel or mobile), show only CSS background
+class CanvasErrorBoundary extends Component {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(err) {
+    console.warn('Background3D Canvas failed, using CSS-only background:', err?.message)
+  }
+  render() {
+    return this.state.failed ? null : this.props.children
+  }
+}
 
 const STAR_COUNT = 4000
 
@@ -113,28 +127,30 @@ export default function Background3D() {
     <div className="galactic-bg-wrap">
       <div className="galactic-gradient" />
       <div className="galactic-stars-css" aria-hidden="true" />
-      <Canvas
-        className="galactic-canvas"
-        camera={{ position: [0, 0, 25], fov: 60 }}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-        }}
-      >
-        <fog attach="fog" args={['#0d0a1a', 22, 72]} />
-        <color attach="background" args={['#050308']} />
-        <ambientLight intensity={0.15} />
-        <pointLight position={[10, 10, 10]} intensity={0.4} color="#8b5cf6" />
-        <pointLight position={[-10, -5, 5]} intensity={0.3} color="#6366f1" />
-        <pointLight position={[0, 10, -10]} intensity={0.2} color="#a78bfa" />
-        <Starfield />
-        <ParticleField />
-        <GlowOrb position={[4, 2, -5]} color="#8b5cf6" scale={2} />
-        <GlowOrb position={[-5, -2, -6]} color="#6366f1" scale={1.5} />
-        <GlowOrb position={[0, 4, -10]} color="#a78bfa" scale={1} />
-        <HolographicRing />
-      </Canvas>
+      <CanvasErrorBoundary>
+        <Canvas
+          className="galactic-canvas"
+          camera={{ position: [0, 0, 25], fov: 60 }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: 'high-performance',
+          }}
+        >
+          <fog attach="fog" args={['#0d0a1a', 22, 72]} />
+          <color attach="background" args={['#050308']} />
+          <ambientLight intensity={0.15} />
+          <pointLight position={[10, 10, 10]} intensity={0.4} color="#8b5cf6" />
+          <pointLight position={[-10, -5, 5]} intensity={0.3} color="#6366f1" />
+          <pointLight position={[0, 10, -10]} intensity={0.2} color="#a78bfa" />
+          <Starfield />
+          <ParticleField />
+          <GlowOrb position={[4, 2, -5]} color="#8b5cf6" scale={2} />
+          <GlowOrb position={[-5, -2, -6]} color="#6366f1" scale={1.5} />
+          <GlowOrb position={[0, 4, -10]} color="#a78bfa" scale={1} />
+          <HolographicRing />
+        </Canvas>
+      </CanvasErrorBoundary>
     </div>
   )
 }

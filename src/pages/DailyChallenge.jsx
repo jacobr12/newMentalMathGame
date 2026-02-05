@@ -15,8 +15,9 @@ const CHALLENGE_TYPES = [
 ]
 const VALID_TYPES = ['division', 'equation', 'multiplication']
 
+// Daily challenges reset at midnight Pacific — use same date as backend
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
 }
 
 export default function DailyChallenge() {

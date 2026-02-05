@@ -7,6 +7,12 @@ const router = express.Router();
 
 const PROBLEMS_PER_DAY = 10;
 const CHALLENGE_TYPES = ['division', 'equation', 'multiplication'];
+const DAILY_RESET_TIMEZONE = 'America/Los_Angeles';
+
+// Today's date (YYYY-MM-DD) in Pacific time — daily challenges reset at midnight PT
+function getTodayPacific() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: DAILY_RESET_TIMEZONE });
+}
 
 // Seeded RNG (simple LCG) for deterministic problems per day
 function seededRandom(seed) {
@@ -176,7 +182,7 @@ function typeFilter(type) {
 // @access  Public
 router.get('/problems', (req, res) => {
   try {
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const dateStr = req.query.date || getTodayPacific();
     const type = validateType(req.query.type || 'division');
     const problems = generateProblemsForDate(dateStr, type);
     const clientProblems = problems.map((p) => {
@@ -196,7 +202,7 @@ router.get('/problems', (req, res) => {
 router.post('/score-only', (req, res) => {
   try {
     const { date: dateStr, type: bodyType, answers } = req.body;
-    const date = dateStr || new Date().toISOString().slice(0, 10);
+    const date = dateStr || getTodayPacific();
     const type = validateType(bodyType || req.query.type || 'division');
     if (!Array.isArray(answers) || answers.length !== PROBLEMS_PER_DAY) {
       return res.status(400).json({ message: `Must submit exactly ${PROBLEMS_PER_DAY} answers` });
@@ -233,7 +239,7 @@ router.post('/score-only', (req, res) => {
 router.post('/submit', protect, async (req, res) => {
   try {
     const { date: dateStr, type: bodyType, answers } = req.body;
-    const date = dateStr || new Date().toISOString().slice(0, 10);
+    const date = dateStr || getTodayPacific();
     const type = validateType(bodyType || 'division');
     if (!Array.isArray(answers) || answers.length !== PROBLEMS_PER_DAY) {
       return res.status(400).json({ message: `Must submit exactly ${PROBLEMS_PER_DAY} answers` });
@@ -304,7 +310,7 @@ router.post('/submit', protect, async (req, res) => {
 // @access  Public
 router.get('/leaderboard', async (req, res) => {
   try {
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const dateStr = req.query.date || getTodayPacific();
     const type = validateType(req.query.type || 'division');
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const docs = await DailyChallenge.find({ date: dateStr, ...typeFilter(type) })
@@ -329,7 +335,7 @@ router.get('/leaderboard', async (req, res) => {
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const dateStr = req.query.date || getTodayPacific();
     const type = validateType(req.query.type || 'division');
     const doc = await DailyChallenge.findOne({ date: dateStr, user: req.user._id, ...typeFilter(type) });
     res.json({
@@ -353,7 +359,7 @@ router.delete('/reset-day', async (req, res) => {
     if (!expectedSecret || req.query.secret !== expectedSecret) {
       return res.status(403).json({ message: 'Invalid or missing secret' });
     }
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const dateStr = req.query.date || getTodayPacific();
     const type = req.query.type;
     const filter = { date: dateStr };
     if (type && CHALLENGE_TYPES.includes(type)) filter.type = type;

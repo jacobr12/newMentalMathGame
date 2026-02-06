@@ -30,6 +30,40 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// Helper: filter by challenge type (legacy division has no type)
+function typeFilter(type) {
+  if (type === 'division') {
+    return { $or: [{ type: 'division' }, { type: { $exists: false } }] };
+  }
+  return type ? { type } : {};
+}
+
+// @route   GET /api/admin/daily-challenge/results
+// @query   date=YYYY-MM-DD, type=division|equation|multiplication
+// @desc    Get all submissions for a date/type with user info and full answers (admin only)
+// @access  Private (admin)
+router.get('/daily-challenge/results', async (req, res) => {
+  try {
+    const dateStr = req.query.date || getTodayPacific();
+    const type = req.query.type;
+    const filter = { date: dateStr, ...typeFilter(type) };
+    const docs = await DailyChallenge.find(filter)
+      .sort({ score: -1 })
+      .populate('user', 'name email')
+      .lean();
+    const results = docs.map((d) => ({
+      _id: d._id,
+      user: d.user ? { _id: d.user._id, name: d.user.name, email: d.user.email } : null,
+      score: d.score,
+      answers: d.answers || [],
+    }));
+    res.json({ date: dateStr, type: type || 'division', results });
+  } catch (error) {
+    console.error('Admin daily challenge results error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   DELETE /api/admin/daily-challenge/reset
 // @body    { date?, type? }  date = YYYY-MM-DD, type = division|equation|multiplication
 // @access  Private (admin)

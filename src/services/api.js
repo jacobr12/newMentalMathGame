@@ -191,4 +191,11 @@ export const adminAPI = {
     const q = params.toString();
     return apiRequest(`/admin/daily-challenge/reset${q ? `?${q}` : ''}`, opts);
   },
+
+  getDailyChallengeResults: async (date, type = '') => {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (type) params.set('type', type);
+    return apiRequest(`/admin/daily-challenge/results?${params.toString()}`);
+  },
 };

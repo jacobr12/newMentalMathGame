@@ -104,7 +104,6 @@ export default function Admin() {
   const chartData = results?.results?.length
     ? (() => {
         const byIndex = {}
-        const n = results.results.length
         results.results.forEach((r) => {
           (r.answers || []).forEach((a) => {
             const i = a.problemIndex
@@ -123,6 +122,44 @@ export default function Admin() {
           }))
       })()
     : []
+
+  // Grouped bar data: one row per question, one key per user (time in sec, then points)
+  const CHART_COLORS = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#6366f1', '#22d3ee', '#34d399', '#fbbf24', '#f472b6', '#fb923c']
+  const { groupedBarDataTime, groupedBarDataPoints, userChartKeys } = results?.results?.length
+    ? (() => {
+        const rows = results.results
+        const keys = rows.map((r, i) => ({
+          key: `user_${i}`,
+          name: r.user?.name || r.user?.email || `User ${i + 1}`,
+          color: CHART_COLORS[i % CHART_COLORS.length],
+        }))
+        const byQuestionTime = {}
+        const byQuestionPoints = {}
+        for (let q = 0; q < 10; q++) {
+          byQuestionTime[q] = { question: `Q${q + 1}` }
+          byQuestionPoints[q] = { question: `Q${q + 1}` }
+          keys.forEach((k, i) => {
+            byQuestionTime[q][k.key] = 0
+            byQuestionPoints[q][k.key] = 0
+          })
+        }
+        rows.forEach((r, userIdx) => {
+          const k = keys[userIdx].key
+          ;(r.answers || []).forEach((a) => {
+            const q = a.problemIndex
+            if (byQuestionTime[q]) byQuestionTime[q][k] = Math.round((a.timeTaken ?? 0) / 1000 * 100) / 100
+            if (byQuestionPoints[q]) byQuestionPoints[q][k] = a.problemScore ?? 0
+          })
+        })
+        const groupedBarDataTime = Object.keys(byQuestionTime)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((q) => byQuestionTime[q])
+        const groupedBarDataPoints = Object.keys(byQuestionPoints)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((q) => byQuestionPoints[q])
+        return { groupedBarDataTime, groupedBarDataPoints, userChartKeys: keys }
+      })()
+    : { groupedBarDataTime: [], groupedBarDataPoints: [], userChartKeys: [] }
 
   if (!user) return null
   if (user.isAdmin === false) return null
@@ -344,6 +381,46 @@ export default function Admin() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  {groupedBarDataTime.length > 0 && userChartKeys.length > 0 && (
+                    <>
+                      <h3 style={{ color: '#e2e8f0', fontSize: '1rem', marginBottom: '0.75rem', marginTop: '1.5rem' }}>Time per person per question (seconds)</h3>
+                      <div style={{ width: '100%', height: Math.max(280, userChartKeys.length * 24 + 180) }}>
+                        <ResponsiveContainer>
+                          <BarChart data={groupedBarDataTime} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barCategoryGap="15%" barGap={2}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                            <XAxis dataKey="question" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                            <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} label={{ value: 'Time (s)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 11 } }} />
+                            <Tooltip
+                              contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
+                              labelStyle={{ color: '#e2e8f0' }}
+                            />
+                            <Legend />
+                            {userChartKeys.map((u) => (
+                              <Bar key={u.key} dataKey={u.key} name={u.name} fill={u.color} radius={[2, 2, 0, 0]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <h3 style={{ color: '#e2e8f0', fontSize: '1rem', marginBottom: '0.75rem', marginTop: '1.5rem' }}>Points per person per question</h3>
+                      <div style={{ width: '100%', height: Math.max(280, userChartKeys.length * 24 + 180) }}>
+                        <ResponsiveContainer>
+                          <BarChart data={groupedBarDataPoints} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barCategoryGap="15%" barGap={2}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                            <XAxis dataKey="question" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                            <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} label={{ value: 'Points', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 11 } }} />
+                            <Tooltip
+                              contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
+                              labelStyle={{ color: '#e2e8f0' }}
+                            />
+                            <Legend />
+                            {userChartKeys.map((u) => (
+                              <Bar key={u.key} dataKey={u.key} name={u.name} fill={u.color} radius={[2, 2, 0, 0]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
               <div style={{ overflowX: 'auto' }}>

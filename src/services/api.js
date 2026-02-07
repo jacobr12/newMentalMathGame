@@ -198,4 +198,11 @@ export const adminAPI = {
     if (type) params.set('type', type);
     return apiRequest(`/admin/daily-challenge/results?${params.toString()}`);
   },
+
+  updateDailyChallengeScore: async (userId, date, type, score) => {
+    return apiRequest('/admin/daily-challenge/score', {
+      method: 'PATCH',
+      body: JSON.stringify({ userId, date, type: type || 'division', score: Number(score) }),
+    });
+  },
 };

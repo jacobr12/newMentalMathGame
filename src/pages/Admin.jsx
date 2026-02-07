@@ -42,6 +42,10 @@ export default function Admin() {
   const [resultsLoading, setResultsLoading] = useState(false)
   const [resultsError, setResultsError] = useState('')
   const [showCharts, setShowCharts] = useState(false)
+  const [editingScoreId, setEditingScoreId] = useState(null)
+  const [editingScoreValue, setEditingScoreValue] = useState('')
+  const [scoreUpdateError, setScoreUpdateError] = useState('')
+  const [scoreUpdating, setScoreUpdating] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated || !user?.isAdmin) return
@@ -90,6 +94,8 @@ export default function Admin() {
     setResultsLoading(true)
     setResultsError('')
     setResults(null)
+    setEditingScoreId(null)
+    setScoreUpdateError('')
     try {
       const data = await adminAPI.getDailyChallengeResults(resultsDate, resultsType)
       setResults(data)
@@ -97,6 +103,38 @@ export default function Admin() {
       setResultsError(err.message || 'Failed to load results')
     } finally {
       setResultsLoading(false)
+    }
+  }
+
+  const startEditScore = (row) => {
+    setEditingScoreId(row._id)
+    setEditingScoreValue(row.score != null ? String(row.score) : '')
+    setScoreUpdateError('')
+  }
+
+  const cancelEditScore = () => {
+    setEditingScoreId(null)
+    setEditingScoreValue('')
+    setScoreUpdateError('')
+  }
+
+  const saveScore = async (row) => {
+    const val = parseFloat(editingScoreValue)
+    if (!Number.isFinite(val) || val < 0) {
+      setScoreUpdateError('Enter a valid non-negative number')
+      return
+    }
+    setScoreUpdating(true)
+    setScoreUpdateError('')
+    try {
+      await adminAPI.updateDailyChallengeScore(row.user?._id, resultsDate, resultsType, val)
+      setEditingScoreId(null)
+      setEditingScoreValue('')
+      await loadResults()
+    } catch (err) {
+      setScoreUpdateError(err.message || 'Failed to update score')
+    } finally {
+      setScoreUpdating(false)
     }
   }
 
@@ -335,9 +373,10 @@ export default function Admin() {
           {resultsError && <p style={{ color: '#fca5a5', marginBottom: '1rem', fontSize: '0.9rem' }}>{resultsError}</p>}
           {results && (
             <>
-              <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                 {results.results?.length ?? 0} submission(s) for {results.date} ({results.type || 'division'}).
               </p>
+              {scoreUpdateError && <p style={{ color: '#fca5a5', fontSize: '0.9rem', marginBottom: '1rem' }}>{scoreUpdateError}</p>}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}>
                   <input
@@ -425,10 +464,10 @@ export default function Admin() {
               )}
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '0.85rem' }}>
-                  <thead>
+                    <thead>
                     <tr style={{ borderBottom: '1px solid rgba(139, 92, 246, 0.25)' }}>
                       <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', whiteSpace: 'nowrap' }}>User</th>
-                      <th style={{ textAlign: 'right', padding: '0.5rem', color: '#94a3b8', fontWeight: '600' }}>Total</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', minWidth: '140px' }}>Total</th>
                       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((idx) => (
                         <th key={idx} style={{ textAlign: 'center', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', minWidth: '72px' }} title={`Question ${idx + 1}`}>
                           Q{idx + 1}
@@ -446,7 +485,82 @@ export default function Admin() {
                             <span style={{ fontWeight: '500' }}>{row.user?.name || '—'}</span>
                             {row.user?.email && <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>{row.user.email}</span>}
                           </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: '600' }}>{row.score != null ? row.score.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                            {editingScoreId === row._id ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={editingScoreValue}
+                                  onChange={(e) => setEditingScoreValue(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && saveScore(row)}
+                                  style={{
+                                    width: '72px',
+                                    padding: '0.25rem 0.4rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(139, 92, 246, 0.5)',
+                                    background: 'rgba(15, 23, 42, 0.8)',
+                                    color: '#e2e8f0',
+                                    fontSize: '0.85rem',
+                                  }}
+                                />
+                                <motion.button
+                                  type="button"
+                                  onClick={() => saveScore(row)}
+                                  disabled={scoreUpdating}
+                                  style={{
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: 'rgba(34, 197, 94, 0.3)',
+                                    color: '#86efac',
+                                    cursor: scoreUpdating ? 'wait' : 'pointer',
+                                    fontSize: '0.8rem',
+                                  }}
+                                >
+                                  {scoreUpdating ? '…' : 'Save'}
+                                </motion.button>
+                                <motion.button
+                                  type="button"
+                                  onClick={cancelEditScore}
+                                  disabled={scoreUpdating}
+                                  style={{
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: 'rgba(148, 163, 184, 0.2)',
+                                    color: '#94a3b8',
+                                    cursor: scoreUpdating ? 'wait' : 'pointer',
+                                    fontSize: '0.8rem',
+                                  }}
+                                >
+                                  Cancel
+                                </motion.button>
+                              </span>
+                            ) : (
+                              <>
+                                {row.score != null ? row.score.toFixed(2) : '—'}
+                                <motion.button
+                                  type="button"
+                                  onClick={() => startEditScore(row)}
+                                  style={{
+                                    marginLeft: '0.5rem',
+                                    padding: '0.15rem 0.4rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                                    background: 'transparent',
+                                    color: '#a78bfa',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                  }}
+                                  whileHover={{ background: 'rgba(139, 92, 246, 0.2)' }}
+                                >
+                                  Edit
+                                </motion.button>
+                              </>
+                            )}
+                          </td>
                           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((idx) => {
                             const a = answersByIndex[idx]
                             if (!a) return <td key={idx} style={{ padding: '0.35rem', textAlign: 'center', color: '#64748b' }}>—</td>

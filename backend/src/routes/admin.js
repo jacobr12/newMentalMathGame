@@ -64,6 +64,51 @@ router.get('/daily-challenge/results', async (req, res) => {
   }
 });
 
+// @route   PATCH /api/admin/daily-challenge/score
+// @body    { userId, date, type?, score }  date = YYYY-MM-DD, type = division|equation|multiplication
+// @desc    Manually set a user's total score for a daily challenge; scales per-question scores to match
+// @access  Private (admin)
+router.patch('/daily-challenge/score', async (req, res) => {
+  try {
+    const { userId, date: dateStr, type: bodyType, score: newScore } = req.body;
+    if (!userId || !dateStr) {
+      return res.status(400).json({ message: 'userId and date are required' });
+    }
+    const scoreNum = Number(newScore);
+    if (!Number.isFinite(scoreNum) || scoreNum < 0) {
+      return res.status(400).json({ message: 'score must be a non-negative number' });
+    }
+    const type = bodyType && CHALLENGE_TYPES.includes(bodyType) ? bodyType : 'division';
+    const filter = { date: dateStr, user: userId, ...typeFilter(type) };
+    const doc = await DailyChallenge.findOne(filter);
+    if (!doc) {
+      return res.status(404).json({ message: 'Daily challenge submission not found for this user, date, and type' });
+    }
+    const oldTotal = doc.score || 0;
+    doc.score = Math.round(scoreNum * 100) / 100;
+    if (Array.isArray(doc.answers) && doc.answers.length > 0 && oldTotal > 0) {
+      const ratio = doc.score / oldTotal;
+      let sum = 0;
+      for (let i = 0; i < doc.answers.length - 1; i++) {
+        const scaled = (doc.answers[i].problemScore || 0) * ratio;
+        const rounded = Math.round(scaled * 100) / 100;
+        doc.answers[i].problemScore = rounded;
+        sum += rounded;
+      }
+      doc.answers[doc.answers.length - 1].problemScore = Math.round((doc.score - sum) * 100) / 100;
+    }
+    await doc.save();
+    res.json({
+      message: 'Score updated',
+      score: doc.score,
+      submissionId: doc._id,
+    });
+  } catch (error) {
+    console.error('Admin update daily challenge score error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   DELETE /api/admin/daily-challenge/reset
 // @body    { date?, type? }  date = YYYY-MM-DD, type = division|equation|multiplication
 // @access  Private (admin)

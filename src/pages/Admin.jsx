@@ -16,7 +16,7 @@ import {
 import Background3D from '../components/Background3D'
 import Navigation from '../components/Navigation'
 import { useAuth } from '../context/AuthContext'
-import { adminAPI } from '../services/api'
+import { adminAPI, dailyChallengeAPI } from '../services/api'
 
 const pageTransition = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.35 }
 
@@ -46,6 +46,7 @@ export default function Admin() {
   const [editingScoreValue, setEditingScoreValue] = useState('')
   const [scoreUpdateError, setScoreUpdateError] = useState('')
   const [scoreUpdating, setScoreUpdating] = useState(false)
+  const [problems, setProblems] = useState([])
 
   useEffect(() => {
     if (!isAuthenticated || !user?.isAdmin) return
@@ -94,11 +95,16 @@ export default function Admin() {
     setResultsLoading(true)
     setResultsError('')
     setResults(null)
+    setProblems([])
     setEditingScoreId(null)
     setScoreUpdateError('')
     try {
-      const data = await adminAPI.getDailyChallengeResults(resultsDate, resultsType)
+      const [data, problemsRes] = await Promise.all([
+        adminAPI.getDailyChallengeResults(resultsDate, resultsType),
+        dailyChallengeAPI.getProblems(resultsDate, resultsType),
+      ])
       setResults(data)
+      setProblems(problemsRes?.problems || [])
     } catch (err) {
       setResultsError(err.message || 'Failed to load results')
     } finally {
@@ -522,6 +528,14 @@ export default function Admin() {
               <h3 style={{ color: '#e2e8f0', fontSize: '1rem', marginBottom: '0.75rem' }}>By question</h3>
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((problemIndex) => {
                 const correctAnswer = results.results[0]?.answers?.find((a) => a.problemIndex === problemIndex)?.correctAnswer
+                const problem = problems.find((p) => p.problemIndex === problemIndex)
+                const problemText = problem
+                  ? problem.expression != null
+                    ? problem.expression
+                    : results.type === 'multiplication'
+                      ? `${problem.a} × ${problem.b}`
+                      : `${problem.a} ÷ ${problem.b}`
+                  : null
                 return (
                   <div
                     key={problemIndex}
@@ -535,6 +549,9 @@ export default function Admin() {
                   >
                     <div style={{ color: '#a78bfa', fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
                       Question {problemIndex + 1}
+                      {problemText != null && (
+                        <span style={{ color: '#e2e8f0', fontWeight: '500', marginLeft: '0.5rem' }}> · {problemText}</span>
+                      )}
                       {correctAnswer != null && (
                         <span style={{ color: '#94a3b8', fontWeight: '500', marginLeft: '0.5rem' }}> · Correct answer: {typeof correctAnswer === 'number' ? correctAnswer : Number(correctAnswer).toFixed(4)}</span>
                       )}

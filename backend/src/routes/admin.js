@@ -64,11 +64,8 @@ router.get('/daily-challenge/results', async (req, res) => {
   }
 });
 
-// @route   PATCH /api/admin/daily-challenge/score
-// @body    { userId, date, type?, score }  date = YYYY-MM-DD, type = division|equation|multiplication
-// @desc    Manually set a user's total score for a daily challenge; scales per-question scores to match
-// @access  Private (admin)
-router.patch('/daily-challenge/score', async (req, res) => {
+// Shared handler for updating a user's daily challenge score (PATCH and POST)
+async function updateDailyChallengeScoreHandler(req, res) {
   try {
     const { userId, date: dateStr, type: bodyType, score: newScore } = req.body;
     if (!userId || !dateStr) {
@@ -107,7 +104,14 @@ router.patch('/daily-challenge/score', async (req, res) => {
     console.error('Admin update daily challenge score error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}
+
+// @route   PATCH /api/admin/daily-challenge/score
+// @route   POST /api/admin/daily-challenge/score  (alias for hosts that don't support PATCH)
+// @body    { userId, date, type?, score }
+// @access  Private (admin)
+router.patch('/daily-challenge/score', updateDailyChallengeScoreHandler);
+router.post('/daily-challenge/score', updateDailyChallengeScoreHandler);
 
 // @route   DELETE /api/admin/daily-challenge/reset
 // @body    { date?, type? }  date = YYYY-MM-DD, type = division|equation|multiplication

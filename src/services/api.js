@@ -201,7 +201,7 @@ export const adminAPI = {
 
   updateDailyChallengeScore: async (userId, date, type, score) => {
     return apiRequest('/admin/daily-challenge/score', {
-      method: 'PATCH',
+      method: 'POST',
       body: JSON.stringify({ userId, date, type: type || 'division', score: Number(score) }),
     });
   },

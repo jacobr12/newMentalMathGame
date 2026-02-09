@@ -462,123 +462,126 @@ export default function Admin() {
                   )}
                 </div>
               )}
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '0.85rem' }}>
-                    <thead>
+              {results.results?.length === 0 ? (
+                <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>No submissions for this date and type.</p>
+              ) : (
+                <>
+              {/* Summary: one row per user, total score + edit */}
+              <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '0.9rem' }}>
+                  <thead>
                     <tr style={{ borderBottom: '1px solid rgba(139, 92, 246, 0.25)' }}>
                       <th style={{ textAlign: 'left', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', whiteSpace: 'nowrap' }}>User</th>
-                      <th style={{ textAlign: 'right', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', minWidth: '140px' }}>Total</th>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((idx) => (
-                        <th key={idx} style={{ textAlign: 'center', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', minWidth: '72px' }} title={`Question ${idx + 1}`}>
-                          Q{idx + 1}
-                        </th>
-                      ))}
+                      <th style={{ textAlign: 'right', padding: '0.5rem', color: '#94a3b8', fontWeight: '600', minWidth: '140px' }}>Total score</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {results.results.map((row) => {
-                      const answersByIndex = {}
-                      ;(row.answers || []).forEach((a) => { answersByIndex[a.problemIndex] = a })
-                      return (
-                        <tr key={row._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontWeight: '500' }}>{row.user?.name || '—'}</span>
-                            {row.user?.email && <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>{row.user.email}</span>}
-                          </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                            {editingScoreId === row._id ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={editingScoreValue}
-                                  onChange={(e) => setEditingScoreValue(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && saveScore(row)}
-                                  style={{
-                                    width: '72px',
-                                    padding: '0.25rem 0.4rem',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(139, 92, 246, 0.5)',
-                                    background: 'rgba(15, 23, 42, 0.8)',
-                                    color: '#e2e8f0',
-                                    fontSize: '0.85rem',
-                                  }}
-                                />
-                                <motion.button
-                                  type="button"
-                                  onClick={() => saveScore(row)}
-                                  disabled={scoreUpdating}
-                                  style={{
-                                    padding: '0.2rem 0.5rem',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    background: 'rgba(34, 197, 94, 0.3)',
-                                    color: '#86efac',
-                                    cursor: scoreUpdating ? 'wait' : 'pointer',
-                                    fontSize: '0.8rem',
-                                  }}
-                                >
-                                  {scoreUpdating ? '…' : 'Save'}
-                                </motion.button>
-                                <motion.button
-                                  type="button"
-                                  onClick={cancelEditScore}
-                                  disabled={scoreUpdating}
-                                  style={{
-                                    padding: '0.2rem 0.5rem',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    background: 'rgba(148, 163, 184, 0.2)',
-                                    color: '#94a3b8',
-                                    cursor: scoreUpdating ? 'wait' : 'pointer',
-                                    fontSize: '0.8rem',
-                                  }}
-                                >
-                                  Cancel
-                                </motion.button>
-                              </span>
-                            ) : (
-                              <>
-                                {row.score != null ? row.score.toFixed(2) : '—'}
-                                <motion.button
-                                  type="button"
-                                  onClick={() => startEditScore(row)}
-                                  style={{
-                                    marginLeft: '0.5rem',
-                                    padding: '0.15rem 0.4rem',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(139, 92, 246, 0.4)',
-                                    background: 'transparent',
-                                    color: '#a78bfa',
-                                    cursor: 'pointer',
-                                    fontSize: '0.75rem',
-                                  }}
-                                  whileHover={{ background: 'rgba(139, 92, 246, 0.2)' }}
-                                >
-                                  Edit
-                                </motion.button>
-                              </>
-                            )}
-                          </td>
-                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((idx) => {
-                            const a = answersByIndex[idx]
-                            if (!a) return <td key={idx} style={{ padding: '0.35rem', textAlign: 'center', color: '#64748b' }}>—</td>
-                            const correct = a.userAnswer != null && a.correctAnswer != null && Math.abs(Number(a.userAnswer) - Number(a.correctAnswer)) < 1e-6
-                            return (
-                              <td key={idx} style={{ padding: '0.35rem', textAlign: 'center', minWidth: '72px' }} title={`Correct: ${a.correctAnswer != null ? a.correctAnswer : '?'} | ${(a.timeTaken / 1000).toFixed(1)}s`}>
-                                <span style={{ color: correct ? '#86efac' : '#fca5a5' }}>{a.userAnswer != null ? Number(a.userAnswer) : '—'}</span>
-                                <span style={{ color: '#64748b', fontSize: '0.75rem' }}> / {a.problemScore != null ? a.problemScore.toFixed(0) : '—'}</span>
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      )
-                    })}
+                    {results.results.map((row) => (
+                      <tr key={row._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontWeight: '500' }}>{row.user?.name || '—'}</span>
+                          {row.user?.email && <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>{row.user.email}</span>}
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                          {editingScoreId === row._id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editingScoreValue}
+                                onChange={(e) => setEditingScoreValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && saveScore(row)}
+                                style={{
+                                  width: '72px',
+                                  padding: '0.25rem 0.4rem',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(139, 92, 246, 0.5)',
+                                  background: 'rgba(15, 23, 42, 0.8)',
+                                  color: '#e2e8f0',
+                                  fontSize: '0.85rem',
+                                }}
+                              />
+                              <motion.button type="button" onClick={() => saveScore(row)} disabled={scoreUpdating} style={{ padding: '0.2rem 0.5rem', borderRadius: '6px', border: 'none', background: 'rgba(34, 197, 94, 0.3)', color: '#86efac', cursor: scoreUpdating ? 'wait' : 'pointer', fontSize: '0.8rem' }}>{scoreUpdating ? '…' : 'Save'}</motion.button>
+                              <motion.button type="button" onClick={cancelEditScore} disabled={scoreUpdating} style={{ padding: '0.2rem 0.5rem', borderRadius: '6px', border: 'none', background: 'rgba(148, 163, 184, 0.2)', color: '#94a3b8', cursor: scoreUpdating ? 'wait' : 'pointer', fontSize: '0.8rem' }}>Cancel</motion.button>
+                            </span>
+                          ) : (
+                            <>
+                              {row.score != null ? row.score.toFixed(2) : '—'}
+                              <motion.button type="button" onClick={() => startEditScore(row)} style={{ marginLeft: '0.5rem', padding: '0.15rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.4)', background: 'transparent', color: '#a78bfa', cursor: 'pointer', fontSize: '0.75rem' }} whileHover={{ background: 'rgba(139, 92, 246, 0.2)' }}>Edit</motion.button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-              {results.results?.length === 0 && <p style={{ color: '#94a3b8', marginTop: '1rem' }}>No submissions for this date and type.</p>}
+
+              {/* By question: for each question, show each person's guess, time, points */}
+              <h3 style={{ color: '#e2e8f0', fontSize: '1rem', marginBottom: '0.75rem' }}>By question</h3>
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((problemIndex) => {
+                const correctAnswer = results.results[0]?.answers?.find((a) => a.problemIndex === problemIndex)?.correctAnswer
+                return (
+                  <div
+                    key={problemIndex}
+                    style={{
+                      marginBottom: '1.25rem',
+                      padding: '1rem',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      background: 'rgba(15, 23, 42, 0.4)',
+                    }}
+                  >
+                    <div style={{ color: '#a78bfa', fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+                      Question {problemIndex + 1}
+                      {correctAnswer != null && (
+                        <span style={{ color: '#94a3b8', fontWeight: '500', marginLeft: '0.5rem' }}> · Correct answer: {typeof correctAnswer === 'number' ? correctAnswer : Number(correctAnswer).toFixed(4)}</span>
+                      )}
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                            <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: '#94a3b8', fontWeight: '600' }}>User</th>
+                            <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: '#94a3b8', fontWeight: '600', whiteSpace: 'nowrap' }}>Guess</th>
+                            <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: '#94a3b8', fontWeight: '600', whiteSpace: 'nowrap' }}>Time</th>
+                            <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: '#94a3b8', fontWeight: '600', whiteSpace: 'nowrap' }}>Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {results.results.map((row) => {
+                            const a = (row.answers || []).find((ans) => ans.problemIndex === problemIndex)
+                            const correct = a && a.userAnswer != null && a.correctAnswer != null && Math.abs(Number(a.userAnswer) - Number(a.correctAnswer)) < 1e-6
+                            return (
+                              <tr key={row._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>
+                                  <span style={{ fontWeight: '500' }}>{row.user?.name || row.user?.email || '—'}</span>
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>
+                                  {a != null ? (
+                                    <span style={{ color: correct ? '#86efac' : '#fca5a5', fontWeight: '500' }}>{a.userAnswer != null ? Number(a.userAnswer) : '—'}</span>
+                                  ) : (
+                                    <span style={{ color: '#64748b' }}>—</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', color: '#94a3b8' }}>
+                                  {a?.timeTaken != null ? `${(a.timeTaken / 1000).toFixed(1)}s` : '—'}
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', color: '#c4b5fd' }}>
+                                  {a?.problemScore != null ? a.problemScore.toFixed(1) : '—'}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
+                </>
+              )}
             </>
           )}
         </motion.section>

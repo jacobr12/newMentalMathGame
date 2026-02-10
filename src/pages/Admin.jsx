@@ -168,7 +168,7 @@ export default function Admin() {
     : []
 
   // Grouped bar data: one row per question, one key per user (time in sec, then points)
-  const CHART_COLORS = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#6366f1', '#22d3ee', '#34d399', '#fbbf24', '#f472b6', '#fb923c']
+  const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#6366f1']
   const { groupedBarDataTime, groupedBarDataPoints, userChartKeys } = results?.results?.length
     ? (() => {
         const rows = results.results
@@ -406,7 +406,7 @@ export default function Admin() {
                           contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
                           labelStyle={{ color: '#e2e8f0' }}
                         />
-                        <Bar dataKey="avgScore" name="Avg score" fill="rgba(139, 92, 246, 0.8)" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="avgScore" name="Avg score" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -422,7 +422,7 @@ export default function Admin() {
                           labelStyle={{ color: '#e2e8f0' }}
                         />
                         <Legend />
-                        <Line type="monotone" dataKey="avgTimeSec" name="Avg time (s)" stroke="#a78bfa" strokeWidth={2} dot={{ fill: '#7c3aed' }} />
+                        <Line type="monotone" dataKey="avgTimeSec" name="Avg time (s)" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#d97706' }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

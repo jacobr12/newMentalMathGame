@@ -391,16 +391,12 @@ export default function Practice() {
     }
   }, [timeRemaining, gameStarted, sessionSaved, saveSession])
   
-  // Focus input when problem changes
+  // Focus input when problem changes (no delay for instant feel)
   useEffect(() => {
-    if (problem && !isChecking && !showConfig) {
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus()
-        }
-      }, 50)
+    if (problem && !showConfig && inputRef.current) {
+      inputRef.current.focus()
     }
-  }, [problem, isChecking, showConfig])
+  }, [problem, showConfig])
   
   // Auto-check answer when user types
   useEffect(() => {
@@ -410,7 +406,6 @@ export default function Practice() {
     if (isNaN(answerNum)) return
     
     if (answerNum === problem.answer) {
-      setIsChecking(true)
       setScore(prev => prev + 1)
 
       // Find and update the current problem in the problems array
@@ -428,7 +423,7 @@ export default function Practice() {
         })
       }
 
-      // Generate next problem immediately (no delay)
+      // Generate next problem immediately (no delay, no checking state)
       generateNewProblem()
     }
   }, [userAnswer, problem, isChecking, generateNewProblem, timeRemaining, showConfig])
@@ -533,9 +528,9 @@ export default function Practice() {
         
         <motion.div
           key={problem?.a + problem?.b + problem?.operator}
-          initial={{ opacity: 0.96, scale: 0.99 }}
+          initial={false}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.3 }}
+          transition={{ duration: 0 }}
           className="glass-panel-strong"
           style={{
             padding: '4rem',

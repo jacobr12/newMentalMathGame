@@ -108,7 +108,7 @@ export default function DailyChallenge() {
     const now = Date.now()
     setProblemStartTime(now)
     setElapsedMs(0)
-    setTimeout(() => inputRef.current?.focus(), 100)
+    inputRef.current?.focus()
   }
 
   const switchType = (type) => {
@@ -135,7 +135,7 @@ export default function DailyChallenge() {
     setCurrentIndex((i) => i + 1)
     setProblemStartTime(Date.now())
     setElapsedMs(0)
-    setTimeout(() => inputRef.current?.focus(), 50)
+    inputRef.current?.focus()
   }
 
   // Live timer and speed pts during play
@@ -300,9 +300,9 @@ export default function DailyChallenge() {
         {step === 'play' && currentProblem != null && (
           <motion.div
             key={currentIndex}
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
-            transition={pageTransition}
+            transition={{ duration: 0 }}
             className="glass-panel-strong"
             style={{ padding: '3rem', textAlign: 'center' }}
           >

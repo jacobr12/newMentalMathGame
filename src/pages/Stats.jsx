@@ -279,6 +279,14 @@ export default function Stats() {
                       const chartData = buildChartData(typeId)
                       if (chartData.length === 0) return null
                       const label = DAILY_CHALLENGE_TYPES.find((t) => t.id === typeId)?.label || typeId
+                      const allValues = chartData.flatMap((d) => [d.score, d.avgScoreThatDay].filter((v) => v != null && Number.isFinite(v)))
+                      const dataMin = allValues.length ? Math.min(...allValues) : 0
+                      const dataMax = allValues.length ? Math.max(...allValues) : 1000
+                      const range = dataMax - dataMin
+                      const padding = range < 1 ? 25 : Math.max(20, range * 0.12)
+                      const yMin = Math.max(0, dataMin - padding)
+                      const yMax = Math.min(1000, dataMax + padding)
+                      const yDomain = [yMin, yMax]
                       return (
                         <div key={typeId}>
                           <h3 style={{ color: '#a78bfa', fontSize: '1rem', marginBottom: '0.75rem' }}>{label}</h3>
@@ -287,7 +295,7 @@ export default function Stats() {
                               <LineChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
                                 <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={yDomain} />
                                 <Tooltip
                                   contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
                                   labelStyle={{ color: '#e2e8f0' }}

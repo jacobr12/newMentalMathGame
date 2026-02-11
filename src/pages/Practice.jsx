@@ -533,7 +533,7 @@ export default function Practice() {
           transition={{ duration: 0 }}
           className="glass-panel-strong"
           style={{
-            padding: '4rem',
+            padding: '2rem 2.5rem',
             textAlign: 'center',
             marginBottom: '2rem',
           }}
@@ -541,17 +541,17 @@ export default function Practice() {
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
-            marginBottom: '3rem',
-            fontSize: '1.1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.95rem',
             color: '#94a3b8',
           }}>
             <div>
-              Score: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.5rem' }}>
+              Score: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.2rem' }}>
                 {score}
               </span>
             </div>
             <div>
-              Problems: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.5rem' }}>
+              Problems: <span style={{ color: '#6366f1', fontWeight: '600', fontSize: '1.2rem' }}>
                 {problemsRef.current.length}
               </span>
             </div>
@@ -559,7 +559,7 @@ export default function Practice() {
               Time: <span style={{ 
                 color: timeRemaining <= 10 ? '#ef4444' : '#6366f1', 
                 fontWeight: '600',
-                fontSize: '1.5rem'
+                fontSize: '1.2rem'
               }}>
                 {timeRemaining}s
               </span>
@@ -567,11 +567,13 @@ export default function Practice() {
           </div>
           
           <div style={{
-            fontSize: '5rem',
+            fontSize: '3rem',
             fontWeight: '700',
             color: '#e2e8f0',
-            marginBottom: '3rem',
+            marginBottom: '1.5rem',
             fontFamily: 'monospace',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.2,
           }}>
             {problem?.a} {displayOperator} {problem?.b} = ?
           </div>
@@ -586,13 +588,13 @@ export default function Practice() {
             className="focus-ring"
             style={{
               width: '100%',
-              maxWidth: '300px',
-              padding: '1.5rem',
+              maxWidth: '260px',
+              padding: '1rem 1.25rem',
               borderRadius: '16px',
               border: '1px solid rgba(139, 92, 246, 0.35)',
               background: 'rgba(12, 12, 28, 0.6)',
               color: '#e2e8f0',
-              fontSize: '2rem',
+              fontSize: '1.6rem',
               fontWeight: '600',
               textAlign: 'center',
               outline: 'none',

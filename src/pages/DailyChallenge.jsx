@@ -304,20 +304,20 @@ export default function DailyChallenge() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0 }}
             className="glass-panel-strong"
-            style={{ padding: '3rem', textAlign: 'center' }}
+            style={{ padding: '2rem 2.5rem', textAlign: 'center' }}
           >
-            <div style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+            <div style={{ color: '#94a3b8', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
               Problem {currentIndex + 1} of {problems.length}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
                 Time: <strong style={{ color: '#e2e8f0' }}>{(elapsedMs / 1000).toFixed(1)}s</strong>
               </span>
-              <span style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+              <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
                 Speed: <strong style={{ color: speedPtsFromElapsedMs(elapsedMs, challengeType) >= 50 ? '#86efac' : speedPtsFromElapsedMs(elapsedMs, challengeType) > 0 ? '#fcd34d' : '#f87171' }}>{speedPtsFromElapsedMs(elapsedMs, challengeType)} pts</strong>
               </span>
             </div>
-            <div style={{ fontSize: challengeType === 'equation' ? '2rem' : '3.5rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '2rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+            <div style={{ fontSize: challengeType === 'equation' ? '1.5rem' : '2.75rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '1.25rem', fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.2, letterSpacing: '-0.02em' }}>
               {challengeType === 'equation' && currentProblem.expression != null
                 ? `${String(currentProblem.expression).replace(/\*/g, '×').replace(/\//g, '÷')} = ?`
                 : challengeType === 'multiplication'
@@ -335,13 +335,13 @@ export default function DailyChallenge() {
               className="focus-ring"
               style={{
                 width: '100%',
-                maxWidth: '280px',
-                padding: '1.25rem',
+                maxWidth: '260px',
+                padding: '1rem 1.25rem',
                 borderRadius: '16px',
                 border: '1px solid rgba(139, 92, 246, 0.35)',
                 background: 'rgba(12, 12, 28, 0.6)',
                 color: '#e2e8f0',
-                fontSize: '1.75rem',
+                fontSize: '1.5rem',
                 textAlign: 'center',
                 outline: 'none',
               }}

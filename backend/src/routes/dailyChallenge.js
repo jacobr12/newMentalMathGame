@@ -359,9 +359,11 @@ router.get('/my-history', protect, async (req, res) => {
   try {
     const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
     const endDate = getTodayPacific();
-    const start = new Date();
-    start.setDate(start.getDate() - days);
-    const startDate = start.toLocaleDateString('en-CA', { timeZone: DAILY_RESET_TIMEZONE });
+    // Build startDate in calendar terms: parse endDate as YYYY-MM-DD, subtract days, format in Pacific
+    const [y, m, d] = endDate.split('-').map(Number);
+    const endAsDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    const startAsDate = new Date(endAsDate.getTime() - days * 24 * 60 * 60 * 1000);
+    const startDate = startAsDate.toLocaleDateString('en-CA', { timeZone: DAILY_RESET_TIMEZONE });
 
     const userFilter = { user: req.user._id, date: { $gte: startDate, $lte: endDate } };
     const typeParam = req.query.type;

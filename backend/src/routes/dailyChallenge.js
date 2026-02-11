@@ -351,6 +351,62 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
+// @route   GET /api/daily-challenge/my-history
+// @query   type?, days? (default 30, max 365)
+// @desc    Get current user's past daily challenge submissions with avg score for that day/type
+// @access  Private
+router.get('/my-history', protect, async (req, res) => {
+  try {
+    const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
+    const endDate = getTodayPacific();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    const startDate = start.toLocaleDateString('en-CA', { timeZone: DAILY_RESET_TIMEZONE });
+
+    const userFilter = { user: req.user._id, date: { $gte: startDate, $lte: endDate } };
+    const typeParam = req.query.type;
+    if (typeParam && CHALLENGE_TYPES.includes(typeParam)) {
+      Object.assign(userFilter, typeFilter(typeParam));
+    }
+
+    const userDocs = await DailyChallenge.find(userFilter).sort({ date: -1 }).lean();
+
+    if (userDocs.length === 0) {
+      return res.json({ results: [] });
+    }
+
+    const avgByDateType = await DailyChallenge.aggregate([
+      { $match: { date: { $gte: startDate, $lte: endDate } } },
+      { $addFields: { typeNorm: { $ifNull: ['$type', 'division'] } } },
+      { $group: { _id: { date: '$date', type: '$typeNorm' }, avgScore: { $avg: '$score' }, count: { $sum: 1 } } },
+    ]);
+
+    const avgMap = {};
+    avgByDateType.forEach((row) => {
+      const key = `${row._id.date}\t${row._id.type}`;
+      avgMap[key] = { avgScore: Math.round(row.avgScore * 100) / 100, count: row.count };
+    });
+
+    const results = userDocs.map((d) => {
+      const typeNorm = d.type || 'division';
+      const key = `${d.date}\t${typeNorm}`;
+      const avg = avgMap[key];
+      return {
+        date: d.date,
+        type: typeNorm,
+        score: d.score,
+        avgScoreThatDay: avg ? avg.avgScore : null,
+        participantCount: avg ? avg.count : null,
+      };
+    });
+
+    res.json({ results });
+  } catch (error) {
+    console.error('Daily challenge my-history error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/daily-challenge/me
 // @query   date, type?
 // @access  Private

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Link, useSearchParams } from 'react-router-dom'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import Background3D from '../components/Background3D'
 import Navigation from '../components/Navigation'
 import { dailyChallengeAPI } from '../services/api'
@@ -52,6 +53,10 @@ export default function DailyChallenge() {
   const [result, setResult] = useState(null)
   const [leaderboard, setLeaderboard] = useState([])
   const [myScore, setMyScore] = useState(null)
+  const [historyResults, setHistoryResults] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyTypeFilter, setHistoryTypeFilter] = useState('all')
+  const [historyDays, setHistoryDays] = useState(30)
   const inputRef = useRef(null)
   const { isAuthenticated } = useAuth()
   const date = todayStr()
@@ -84,11 +89,31 @@ export default function DailyChallenge() {
     } catch (_) {}
   }, [date, challengeType, isAuthenticated])
 
+  const fetchHistory = useCallback(async () => {
+    if (!isAuthenticated) return
+    setHistoryLoading(true)
+    try {
+      const data = await dailyChallengeAPI.getMyHistory({
+        type: historyTypeFilter === 'all' ? undefined : historyTypeFilter,
+        days: historyDays,
+      })
+      setHistoryResults(data.results || [])
+    } catch (_) {
+      setHistoryResults([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [isAuthenticated, historyTypeFilter, historyDays])
+
   useEffect(() => {
     fetchProblems()
     fetchLeaderboard()
     fetchMyScore()
   }, [fetchProblems, fetchLeaderboard, fetchMyScore])
+
+  useEffect(() => {
+    if (isAuthenticated) fetchHistory()
+  }, [isAuthenticated, fetchHistory])
 
   useEffect(() => {
     if (VALID_TYPES.includes(typeFromUrl)) {
@@ -414,6 +439,114 @@ export default function DailyChallenge() {
                   Play again
                 </motion.button>
               </>
+            )}
+          </motion.div>
+        )}
+
+        {/* Your past results (signed-in only) */}
+        {isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, ...pageTransition }}
+            className="glass-panel"
+            style={{ padding: '2rem', marginBottom: '2rem' }}
+          >
+            <h2 style={{ color: '#e2e8f0', marginBottom: '1rem' }}>Your past results</h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              Your scores over time and how you compared to the average score that day for each challenge.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+              <div>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Challenge type</label>
+                <select
+                  value={historyTypeFilter}
+                  onChange={(e) => setHistoryTypeFilter(e.target.value)}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    color: '#e2e8f0',
+                    fontSize: '0.9rem',
+                    minWidth: '140px',
+                  }}
+                >
+                  <option value="all">All types</option>
+                  {CHALLENGE_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Time range</label>
+                <select
+                  value={historyDays}
+                  onChange={(e) => setHistoryDays(Number(e.target.value))}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    color: '#e2e8f0',
+                    fontSize: '0.9rem',
+                    minWidth: '130px',
+                  }}
+                >
+                  <option value={7}>Last 7 days</option>
+                  <option value={30}>Last 30 days</option>
+                  <option value={90}>Last 90 days</option>
+                </select>
+              </div>
+            </div>
+            {historyLoading ? (
+              <p style={{ color: '#94a3b8' }}>Loading history…</p>
+            ) : historyResults.length === 0 ? (
+              <p style={{ color: '#64748b' }}>No past results in this range. Complete daily challenges to see your history here.</p>
+            ) : (
+              (() => {
+                const typesToShow = historyTypeFilter === 'all' ? VALID_TYPES : [historyTypeFilter]
+                const buildChartData = (type) => {
+                  const filtered = historyResults.filter((r) => r.type === type)
+                  return [...filtered].sort((a, b) => a.date.localeCompare(b.date)).map((r) => ({
+                    date: r.date,
+                    score: r.score,
+                    avgScoreThatDay: r.avgScoreThatDay,
+                  }))
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {typesToShow.map((typeId) => {
+                      const chartData = buildChartData(typeId)
+                      if (chartData.length === 0) return null
+                      const label = CHALLENGE_TYPES.find((t) => t.id === typeId)?.label || typeId
+                      return (
+                        <div key={typeId}>
+                          <h3 style={{ color: '#a78bfa', fontSize: '1rem', marginBottom: '0.75rem' }}>{label}</h3>
+                          <div style={{ width: '100%', height: 240 }}>
+                            <ResponsiveContainer>
+                              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                                <Tooltip
+                                  contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
+                                  labelStyle={{ color: '#e2e8f0' }}
+                                  formatter={(value, name) => [value != null ? Number(value).toFixed(1) : '—', name]}
+                                  labelFormatter={(label) => `Date: ${label}`}
+                                />
+                                <Legend />
+                                <Line type="monotone" dataKey="score" name="Your score" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
+                                <Line type="monotone" dataKey="avgScoreThatDay" name="Avg that day" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 4" dot={{ fill: '#64748b' }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()
             )}
           </motion.div>
         )}

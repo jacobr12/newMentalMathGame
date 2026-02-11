@@ -169,6 +169,14 @@ export const dailyChallengeAPI = {
     return apiRequest(`/daily-challenge/me?${q}`);
   },
 
+  getMyHistory: async (options = {}) => {
+    const { type, days = 30 } = options;
+    const q = new URLSearchParams();
+    if (type) q.set('type', type);
+    if (days != null) q.set('days', String(days));
+    return apiRequest(`/daily-challenge/my-history?${q}`);
+  },
+
   getScoreOnly: async (date, answers, type = 'division') => {
     return apiRequest('/daily-challenge/score-only', {
       method: 'POST',

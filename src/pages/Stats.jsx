@@ -13,6 +13,10 @@ const DAILY_CHALLENGE_TYPES = [
 ]
 const DAILY_VALID_TYPES = ['division', 'equation', 'multiplication']
 
+function todayPacific() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+}
+
 const statTransition = { type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.35 }
 
 const StatCard = ({ title, value, subtitle, icon, delay = 0 }) => (
@@ -79,6 +83,13 @@ export default function Stats() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyTypeFilter, setHistoryTypeFilter] = useState('all')
   const [historyDays, setHistoryDays] = useState(30)
+  const [whoDidDate, setWhoDidDate] = useState(todayPacific())
+  const [whoDidType, setWhoDidType] = useState('division')
+  const [whoDidList, setWhoDidList] = useState([])
+  const [whoDidLoading, setWhoDidLoading] = useState(false)
+  const [whoDidFetched, setWhoDidFetched] = useState(false)
+  const [whoDidMyResult, setWhoDidMyResult] = useState(null)
+  const [whoDidProblems, setWhoDidProblems] = useState([])
 
   useEffect(() => {
     const loadStats = async () => {
@@ -116,6 +127,28 @@ export default function Stats() {
   useEffect(() => {
     if (isAuthenticated) fetchHistory()
   }, [isAuthenticated, fetchHistory])
+
+  const fetchWhoDidDay = useCallback(async () => {
+    setWhoDidLoading(true)
+    setWhoDidFetched(false)
+    setWhoDidMyResult(null)
+    setWhoDidProblems([])
+    try {
+      const [leaderData, myResultData, problemsData] = await Promise.all([
+        dailyChallengeAPI.getLeaderboard(whoDidDate, 50, whoDidType),
+        dailyChallengeAPI.getMyResult(whoDidDate, whoDidType).catch(() => null),
+        dailyChallengeAPI.getProblems(whoDidDate, whoDidType).catch(() => ({ problems: [] })),
+      ])
+      setWhoDidList(leaderData.leaderboard || [])
+      setWhoDidMyResult(myResultData && myResultData.score != null ? myResultData : null)
+      setWhoDidProblems(problemsData?.problems || [])
+    } catch (_) {
+      setWhoDidList([])
+    } finally {
+      setWhoDidLoading(false)
+      setWhoDidFetched(true)
+    }
+  }, [whoDidDate, whoDidType])
 
   if (loading) {
     return (
@@ -315,6 +348,154 @@ export default function Stats() {
                 )
               })()
             )}
+            {/* Who did this day? */}
+            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(139, 92, 246, 0.2)' }}>
+              <h3 style={{ color: '#e2e8f0', fontSize: '1rem', marginBottom: '0.75rem' }}>Who did this day?</h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                See who completed a daily challenge on a specific date.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.2rem' }}>Date</label>
+                  <input
+                    type="date"
+                    value={whoDidDate}
+                    onChange={(e) => setWhoDidDate(e.target.value)}
+                    style={{
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      color: '#e2e8f0',
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.2rem' }}>Challenge</label>
+                  <select
+                    value={whoDidType}
+                    onChange={(e) => setWhoDidType(e.target.value)}
+                    style={{
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      color: '#e2e8f0',
+                      fontSize: '0.9rem',
+                      minWidth: '130px',
+                    }}
+                  >
+                    {DAILY_CHALLENGE_TYPES.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={fetchWhoDidDay}
+                  disabled={whoDidLoading}
+                  style={{
+                    padding: '0.45rem 1rem',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(139, 92, 246, 0.5)',
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    color: '#c4b5fd',
+                    fontWeight: '600',
+                    fontSize: '0.9rem',
+                    cursor: whoDidLoading ? 'wait' : 'pointer',
+                  }}
+                  whileHover={!whoDidLoading ? { background: 'rgba(139, 92, 246, 0.3)' } : {}}
+                  whileTap={!whoDidLoading ? { scale: 0.98 } : {}}
+                >
+                  {whoDidLoading ? 'Loading…' : 'Show'}
+                </motion.button>
+              </div>
+              {whoDidList.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  padding: '1rem',
+                  borderRadius: '12px',
+                  background: 'rgba(15, 23, 42, 0.5)',
+                  border: '1px solid rgba(139, 92, 246, 0.15)',
+                }}>
+                  <span style={{ color: '#94a3b8', fontSize: '0.85rem', width: '100%', marginBottom: '0.25rem' }}>
+                    {whoDidDate} · {DAILY_CHALLENGE_TYPES.find((t) => t.id === whoDidType)?.label} — {whoDidList.length} {whoDidList.length === 1 ? 'person' : 'people'}
+                  </span>
+                  {whoDidList.map((row) => (
+                    <span
+                      key={row.userId || row.name}
+                      style={{
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '8px',
+                        background: 'rgba(139, 92, 246, 0.12)',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        color: '#e2e8f0',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      #{row.rank} {row.name || 'Anonymous'} <span style={{ color: '#a78bfa', fontWeight: '600' }}>{row.score} pts</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {whoDidMyResult && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '1rem',
+                  borderRadius: '12px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                }}>
+                  <h4 style={{ color: '#e2e8f0', fontSize: '0.95rem', marginBottom: '0.5rem' }}>Your result · {whoDidMyResult.score?.toFixed(1)} pts</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(whoDidMyResult.answers || []).sort((a, b) => (a.problemIndex ?? 0) - (b.problemIndex ?? 0)).map((a, i) => {
+                      const prob = whoDidProblems.find((p) => p.problemIndex === a.problemIndex)
+                      const problemText = prob
+                        ? (prob.expression != null ? prob.expression : whoDidType === 'multiplication' ? `${prob.a} × ${prob.b}` : `${prob.a} ÷ ${prob.b}`)
+                        : `Q${(a.problemIndex ?? i) + 1}`
+                      const correct = a.userAnswer != null && a.correctAnswer != null && Math.abs(Number(a.userAnswer) - Number(a.correctAnswer)) < 1e-6
+                      return (
+                        <div
+                          key={a.problemIndex ?? i}
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '8px',
+                            background: 'rgba(139, 92, 246, 0.08)',
+                            border: '1px solid rgba(139, 92, 246, 0.15)',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          <span style={{ color: '#94a3b8', minWidth: '1.5rem' }}>#{((a.problemIndex ?? i) + 1)}</span>
+                          <span style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{problemText}</span>
+                          <span style={{ color: '#64748b' }}>→</span>
+                          <span style={{ color: correct ? '#86efac' : '#fca5a5', fontWeight: '600' }}>{a.userAnswer != null ? Number(a.userAnswer) : '—'}</span>
+                          <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                            (correct: {a.correctAnswer != null ? Number(a.correctAnswer).toFixed(4) : '—'})
+                          </span>
+                          <span style={{ color: '#a78bfa', marginLeft: 'auto' }}>{a.problemScore != null ? a.problemScore.toFixed(1) : '—'} pts</span>
+                          <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{(a.timeTaken / 1000).toFixed(1)}s</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {whoDidFetched && !whoDidMyResult && whoDidList.length > 0 && (
+                <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.75rem' }}>You didn’t do this challenge on this date.</p>
+              )}
+              {whoDidList.length === 0 && !whoDidLoading && (
+                <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
+                  {whoDidFetched ? 'No one completed this challenge on this date.' : 'Pick a date and challenge, then click Show to see who completed it.'}
+                </p>
+              )}
+            </div>
           </motion.div>
         )}
 

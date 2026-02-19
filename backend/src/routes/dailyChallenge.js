@@ -409,6 +409,30 @@ router.get('/my-history', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/daily-challenge/my-result
+// @query   date=YYYY-MM-DD, type=division|equation|multiplication
+// @desc    Get current user's full submission for one day (problems, answers, scores)
+// @access  Private
+router.get('/my-result', protect, async (req, res) => {
+  try {
+    const dateStr = req.query.date || getTodayPacific();
+    const type = validateType(req.query.type || 'division');
+    const doc = await DailyChallenge.findOne({ date: dateStr, user: req.user._id, ...typeFilter(type) }).lean();
+    if (!doc) {
+      return res.status(404).json({ message: 'No submission for this date and challenge type' });
+    }
+    res.json({
+      date: doc.date,
+      type: doc.type || 'division',
+      score: doc.score,
+      answers: doc.answers || [],
+    });
+  } catch (error) {
+    console.error('Daily challenge my-result error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/daily-challenge/me
 // @query   date, type?
 // @access  Private

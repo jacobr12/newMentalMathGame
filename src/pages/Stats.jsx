@@ -298,6 +298,24 @@ export default function Stats() {
             ) : (
               (() => {
                 const typesToShow = historyTypeFilter === 'all' ? DAILY_VALID_TYPES : [historyTypeFilter]
+                // Per-day average: always (div + equation + mult) / 3; missing types = 0 (so doing 1 type = lower average)
+                const byDate = {}
+                historyResults.forEach((r) => {
+                  if (!byDate[r.date]) byDate[r.date] = { division: 0, equation: 0, multiplication: 0 }
+                  if (byDate[r.date][r.type] !== undefined) byDate[r.date][r.type] = r.score
+                })
+                const combinedChartData = Object.entries(byDate)
+                  .map(([date, scores]) => {
+                    const sum = (scores.division || 0) + (scores.equation || 0) + (scores.multiplication || 0)
+                    const count = [scores.division, scores.equation, scores.multiplication].filter((s) => s > 0).length
+                    return {
+                      date,
+                      avgScore: sum / 3,
+                      totalScore: sum,
+                      count,
+                    }
+                  })
+                  .sort((a, b) => a.date.localeCompare(b.date))
                 const buildChartData = (type) => {
                   const filtered = historyResults.filter((r) => r.type === type)
                   return [...filtered].sort((a, b) => a.date.localeCompare(b.date)).map((r) => ({
@@ -306,8 +324,58 @@ export default function Stats() {
                     avgScoreThatDay: r.avgScoreThatDay,
                   }))
                 }
+                const combinedYDomain = combinedChartData.length
+                  ? [0, Math.min(1000, Math.max(100, Math.max(...combinedChartData.map((d) => d.avgScore)) * 1.1))]
+                  : [0, 1000]
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {/* Combined: average score across challenge types by day (scatter + line) */}
+                    {combinedChartData.length > 0 && (
+                      <div>
+                        <h3 style={{ color: '#a78bfa', fontSize: '1rem', marginBottom: '0.5rem' }}>
+                          Daily average: (Division + Equation + Multiplication) ÷ 3
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                          For each day, your score is always divided by 3. Types you didn’t do that day count as 0, so doing only one type gives a lower average than doing all three.
+                        </p>
+                        <div style={{ width: '100%', height: 260 }}>
+                          <ResponsiveContainer>
+                            <LineChart data={combinedChartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={combinedYDomain} />
+                              <Tooltip
+                                contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px' }}
+                                labelStyle={{ color: '#e2e8f0' }}
+                                labelFormatter={(label) => `Date: ${label}`}
+                                content={({ active, payload, label }) => {
+                                  if (!active || !payload?.length || !payload[0]?.payload) return null
+                                  const p = payload[0].payload
+                                  return (
+                                    <div style={{ padding: '0.5rem 0' }}>
+                                      <div style={{ color: '#e2e8f0', marginBottom: '0.35rem' }}>{label}</div>
+                                      <div style={{ color: '#a78bfa' }}>Avg: {Number(p.avgScore).toFixed(1)} (÷ 3)</div>
+                                      <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                                        {p.count} of 3 types completed that day
+                                      </div>
+                                    </div>
+                                  )
+                                }}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="avgScore"
+                                name="Avg (÷ 3)"
+                                stroke="#8b5cf6"
+                                strokeWidth={2.5}
+                                dot={{ fill: '#8b5cf6', r: 4 }}
+                                activeDot={{ r: 6 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
                     {typesToShow.map((typeId) => {
                       const chartData = buildChartData(typeId)
                       if (chartData.length === 0) return null

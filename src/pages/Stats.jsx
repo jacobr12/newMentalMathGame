@@ -90,6 +90,7 @@ export default function Stats() {
   const [whoDidFetched, setWhoDidFetched] = useState(false)
   const [whoDidMyResult, setWhoDidMyResult] = useState(null)
   const [whoDidProblems, setWhoDidProblems] = useState([])
+  const [dailyChartYAxis, setDailyChartYAxis] = useState('zoom') // 'zoom' | 'full'
 
   useEffect(() => {
     const loadStats = async () => {
@@ -290,6 +291,42 @@ export default function Stats() {
                   <option value={90}>Last 90 days</option>
                 </select>
               </div>
+              <div>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Y-axis</label>
+                <div style={{ display: 'flex', gap: 0, borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(139, 92, 246, 0.3)', background: 'rgba(15, 23, 42, 0.6)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDailyChartYAxis('zoom')}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      fontSize: '0.9rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: dailyChartYAxis === 'zoom' ? 'rgba(139, 92, 246, 0.35)' : 'transparent',
+                      color: dailyChartYAxis === 'zoom' ? '#e2e8f0' : '#94a3b8',
+                      fontWeight: dailyChartYAxis === 'zoom' ? '600' : '400',
+                    }}
+                  >
+                    Zoom to data
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDailyChartYAxis('full')}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      fontSize: '0.9rem',
+                      border: 'none',
+                      borderLeft: '1px solid rgba(139, 92, 246, 0.2)',
+                      cursor: 'pointer',
+                      background: dailyChartYAxis === 'full' ? 'rgba(139, 92, 246, 0.35)' : 'transparent',
+                      color: dailyChartYAxis === 'full' ? '#e2e8f0' : '#94a3b8',
+                      fontWeight: dailyChartYAxis === 'full' ? '600' : '400',
+                    }}
+                  >
+                    0–1000
+                  </button>
+                </div>
+              </div>
             </div>
             {historyLoading ? (
               <p style={{ color: '#94a3b8' }}>Loading history…</p>
@@ -324,9 +361,14 @@ export default function Stats() {
                     avgScoreThatDay: r.avgScoreThatDay,
                   }))
                 }
-                const combinedYDomain = combinedChartData.length
-                  ? [0, Math.min(1000, Math.max(100, Math.max(...combinedChartData.map((d) => d.avgScore)) * 1.1))]
-                  : [0, 1000]
+                const combinedValues = combinedChartData.map((d) => d.avgScore).filter((v) => v != null && Number.isFinite(v))
+                const combinedDataMin = combinedValues.length ? Math.min(...combinedValues) : 0
+                const combinedDataMax = combinedValues.length ? Math.max(...combinedValues) : 1000
+                const combinedRange = combinedDataMax - combinedDataMin
+                const combinedPadding = combinedRange < 1 ? 25 : Math.max(20, combinedRange * 0.12)
+                const combinedYDomain = dailyChartYAxis === 'full' || combinedChartData.length === 0
+                  ? [0, 1000]
+                  : [Math.max(0, combinedDataMin - combinedPadding), Math.min(1000, combinedDataMax + combinedPadding)]
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                     {/* Combined: average score across challenge types by day (scatter + line) */}
@@ -387,7 +429,7 @@ export default function Stats() {
                       const padding = range < 1 ? 25 : Math.max(20, range * 0.12)
                       const yMin = Math.max(0, dataMin - padding)
                       const yMax = Math.min(1000, dataMax + padding)
-                      const yDomain = [yMin, yMax]
+                      const yDomain = dailyChartYAxis === 'full' ? [0, 1000] : [yMin, yMax]
                       return (
                         <div key={typeId}>
                           <h3 style={{ color: '#a78bfa', fontSize: '1rem', marginBottom: '0.75rem' }}>{label}</h3>

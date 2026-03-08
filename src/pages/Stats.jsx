@@ -91,6 +91,7 @@ export default function Stats() {
   const [whoDidMyResult, setWhoDidMyResult] = useState(null)
   const [whoDidProblems, setWhoDidProblems] = useState([])
   const [dailyChartYAxis, setDailyChartYAxis] = useState('zoom') // 'zoom' | 'full'
+  const [combinedAllThreeOnly, setCombinedAllThreeOnly] = useState(false) // only show days where user did all 3 challenge types
 
   useEffect(() => {
     const loadStats = async () => {
@@ -341,7 +342,7 @@ export default function Stats() {
                   if (!byDate[r.date]) byDate[r.date] = { division: 0, equation: 0, multiplication: 0 }
                   if (byDate[r.date][r.type] !== undefined) byDate[r.date][r.type] = r.score
                 })
-                const combinedChartData = Object.entries(byDate)
+                const combinedChartDataRaw = Object.entries(byDate)
                   .map(([date, scores]) => {
                     const sum = (scores.division || 0) + (scores.equation || 0) + (scores.multiplication || 0)
                     const count = [scores.division, scores.equation, scores.multiplication].filter((s) => s > 0).length
@@ -353,6 +354,9 @@ export default function Stats() {
                     }
                   })
                   .sort((a, b) => a.date.localeCompare(b.date))
+                const combinedChartData = combinedAllThreeOnly
+                  ? combinedChartDataRaw.filter((d) => d.count === 3)
+                  : combinedChartDataRaw
                 const buildChartData = (type) => {
                   const filtered = historyResults.filter((r) => r.type === type)
                   return [...filtered].sort((a, b) => a.date.localeCompare(b.date)).map((r) => ({
@@ -372,7 +376,7 @@ export default function Stats() {
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                     {/* Combined: average score across challenge types by day (scatter + line) */}
-                    {combinedChartData.length > 0 && (
+                    {combinedChartDataRaw.length > 0 && (
                       <div>
                         <h3 style={{ color: '#a78bfa', fontSize: '1rem', marginBottom: '0.5rem' }}>
                           Daily average: (Division + Equation + Multiplication) ÷ 3
@@ -380,6 +384,16 @@ export default function Stats() {
                         <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
                           For each day, your score is always divided by 3. Types you didn’t do that day count as 0, so doing only one type gives a lower average than doing all three.
                         </p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer', color: '#94a3b8', fontSize: '0.9rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={combinedAllThreeOnly}
+                            onChange={(e) => setCombinedAllThreeOnly(e.target.checked)}
+                            style={{ width: '1rem', height: '1rem', accentColor: '#8b5cf6' }}
+                          />
+                          Only show days where I did all 3 challenge types (cleaner axis)
+                        </label>
+                        {combinedChartData.length > 0 ? (
                         <div style={{ width: '100%', height: 260 }}>
                           <ResponsiveContainer>
                             <LineChart data={combinedChartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
@@ -416,6 +430,11 @@ export default function Stats() {
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
+                        ) : (
+                          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                            No days in this range where you completed all 3 challenge types. Turn off the filter above to see all days.
+                          </p>
+                        )}
                       </div>
                     )}
                     {typesToShow.map((typeId) => {

@@ -82,7 +82,7 @@ export default function Stats() {
   const [historyResults, setHistoryResults] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyTypeFilter, setHistoryTypeFilter] = useState('all')
-  const [historyDays, setHistoryDays] = useState(30)
+  const [historyDays, setHistoryDays] = useState(90)
   const [whoDidDate, setWhoDidDate] = useState(todayPacific())
   const [whoDidType, setWhoDidType] = useState('division')
   const [whoDidList, setWhoDidList] = useState([])
@@ -91,7 +91,7 @@ export default function Stats() {
   const [whoDidMyResult, setWhoDidMyResult] = useState(null)
   const [whoDidProblems, setWhoDidProblems] = useState([])
   const [dailyChartYAxis, setDailyChartYAxis] = useState('zoom') // 'zoom' | 'full'
-  const [combinedAllThreeOnly, setCombinedAllThreeOnly] = useState(false) // only show days where user did all 3 challenge types
+  const [combinedAllThreeOnly, setCombinedAllThreeOnly] = useState(true) // only show days where user did all 3 challenge types
 
   useEffect(() => {
     const loadStats = async () => {
